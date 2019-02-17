@@ -1,3 +1,5 @@
+pub mod protos;
+
 #[cfg(test)]
 mod tests {
     #[test]

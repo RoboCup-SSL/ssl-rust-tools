@@ -4,4 +4,10 @@ version = "0.1.0"
 authors = ["Devin Schwab <digidevin@gmail.com>"]
 edition = "2018"
 
+[build-dependencies]
+glob = { version = "0.2" }
+protoc-rust = "2.2"
+
 [dependencies]
+protobuf = { version = "2.3" }
+
