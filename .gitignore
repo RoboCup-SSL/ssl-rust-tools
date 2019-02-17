@@ -1,3 +1,7 @@
+# direnv files
+.envrc
+# conan virtualenv folder
+venv
 
 # Created by https://www.gitignore.io/api/rust,emacs
 # Edit at https://www.gitignore.io/?templates=rust,emacs
