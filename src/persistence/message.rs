@@ -245,12 +245,12 @@ mod tests {
         msg_bytes: &[u8],
     ) -> Result<(), TestCaseError> {
         let timestamp_bytes: [u8; 8] = unsafe { std::mem::transmute(timestamp) };
-        writer.write(&timestamp_bytes)?;
+        writer.write_all(&timestamp_bytes)?;
         let msg_type_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_type) };
-        writer.write(&msg_type_bytes)?;
+        writer.write_all(&msg_type_bytes)?;
         let msg_size_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_size) };
-        writer.write(&msg_size_bytes)?;
-        writer.write(msg_bytes)?;
+        writer.write_all(&msg_size_bytes)?;
+        writer.write_all(msg_bytes)?;
 
         Ok(())
     }
@@ -283,7 +283,7 @@ mod tests {
         #[test]
         fn parse_eof(bad_bytes in proptest::collection::vec(proptest::num::u8::ANY, 0..16)) {
             let mut tmpfile = tempfile::tempfile()?;
-            tmpfile.write(&bad_bytes)?;
+            tmpfile.write_all(&bad_bytes)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match Message::parse_from_reader(&mut tmpfile) {

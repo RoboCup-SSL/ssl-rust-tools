@@ -120,9 +120,9 @@ mod tests {
 
             // create the temp file with the bad header
             let mut tmpfile = tempfile::NamedTempFile::new()?;
-            tmpfile.write(&bad_header)?;
+            tmpfile.write_all(&bad_header)?;
             let version_bytes: [u8; 4] = unsafe { std::mem::transmute(1i32) };
-            tmpfile.write(&version_bytes)?;
+            tmpfile.write_all(&version_bytes)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new_from_path(tmpfile.path()).unwrap_err() {
@@ -142,9 +142,9 @@ mod tests {
 
             // create the temp file with the bad header
             let mut tmpfile = tempfile::tempfile()?;
-            tmpfile.write(&bad_header)?;
+            tmpfile.write_all(&bad_header)?;
             let version_bytes: [u8; 4] = unsafe { std::mem::transmute(1i32) };
-            tmpfile.write(&version_bytes)?;
+            tmpfile.write_all(&version_bytes)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new(tmpfile).unwrap_err() {
@@ -164,9 +164,9 @@ mod tests {
 
             // create temp file with the bad version number
             let mut tmpfile = tempfile::NamedTempFile::new()?;
-            tmpfile.write(&EXPECTED_HEADER)?;
+            tmpfile.write_all(&EXPECTED_HEADER)?;
             let version_bytes: [u8; 4] = unsafe { std::mem::transmute(bad_version) };
-            tmpfile.write(&version_bytes)?;
+            tmpfile.write_all(&version_bytes)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new_from_path(tmpfile.path()).unwrap_err() {
@@ -186,9 +186,9 @@ mod tests {
 
             // create temp file with the bad version number
             let mut tmpfile = tempfile::tempfile()?;
-            tmpfile.write(&EXPECTED_HEADER)?;
+            tmpfile.write_all(&EXPECTED_HEADER)?;
             let version_bytes: [u8; 4] = unsafe { std::mem::transmute(bad_version) };
-            tmpfile.write(&version_bytes)?;
+            tmpfile.write_all(&version_bytes)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new(tmpfile).unwrap_err() {
