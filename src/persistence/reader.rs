@@ -1,4 +1,5 @@
 use super::message;
+use byteorder::{BigEndian, ReadBytesExt};
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -59,9 +60,7 @@ impl<T: Read> LogReader<T> {
 
         // read a 32 bit integer, and check that the version matches
         // the expected log version
-        let mut version_bytes = [0u8; 4];
-        reader.read_exact(&mut version_bytes)?;
-        let version: i32 = unsafe { std::mem::transmute(version_bytes) };
+        let version = reader.read_i32::<BigEndian>()?;
         if version != SUPPORTED_VERSION {
             return Err(LogReaderError::UnsupportedVersion { version });
         }
@@ -108,6 +107,7 @@ mod tests {
 
     use super::*;
     use crate::test_utils::reader::*;
+    use byteorder::{BigEndian, WriteBytesExt};
     use proptest::prelude::*;
     use std::io::Write;
 
@@ -117,17 +117,14 @@ mod tests {
         }
     }
 
-    fn write_random_log(
-        messages: &[message::Message],
-    ) -> Result<Vec<u8>, message::MessageError> {
+    fn write_random_log(messages: &[message::Message]) -> Result<Vec<u8>, message::MessageError> {
         // TODO(dschwab): probably better to pre-calculate size and
         // reserve all the memory at once.
         let mut output = Vec::<u8>::new();
 
         // write the log header
         output.extend(EXPECTED_HEADER.iter().cloned());
-        let version_bytes: [u8; 4] = unsafe { std::mem::transmute(SUPPORTED_VERSION) };
-        output.extend(version_bytes.iter().cloned());
+        output.write_i32::<BigEndian>(SUPPORTED_VERSION)?;
 
         // write all the messages
         for message in messages {
@@ -145,8 +142,7 @@ mod tests {
             // create the temp file with the bad header
             let mut tmpfile = tempfile::NamedTempFile::new()?;
             tmpfile.write_all(&bad_header)?;
-            let version_bytes: [u8; 4] = unsafe { std::mem::transmute(1i32) };
-            tmpfile.write_all(&version_bytes)?;
+            tmpfile.write_i32::<BigEndian>(SUPPORTED_VERSION)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new_from_path(tmpfile.path()).unwrap_err() {
@@ -167,8 +163,7 @@ mod tests {
             // create the temp file with the bad header
             let mut tmpfile = tempfile::tempfile()?;
             tmpfile.write_all(&bad_header)?;
-            let version_bytes: [u8; 4] = unsafe { std::mem::transmute(1i32) };
-            tmpfile.write_all(&version_bytes)?;
+            tmpfile.write_i32::<BigEndian>(SUPPORTED_VERSION)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new(tmpfile).unwrap_err() {
@@ -189,8 +184,7 @@ mod tests {
             // create temp file with the bad version number
             let mut tmpfile = tempfile::NamedTempFile::new()?;
             tmpfile.write_all(&EXPECTED_HEADER)?;
-            let version_bytes: [u8; 4] = unsafe { std::mem::transmute(bad_version) };
-            tmpfile.write_all(&version_bytes)?;
+            tmpfile.write_i32::<BigEndian>(bad_version)?;            
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new_from_path(tmpfile.path()).unwrap_err() {
@@ -211,8 +205,7 @@ mod tests {
             // create temp file with the bad version number
             let mut tmpfile = tempfile::tempfile()?;
             tmpfile.write_all(&EXPECTED_HEADER)?;
-            let version_bytes: [u8; 4] = unsafe { std::mem::transmute(bad_version) };
-            tmpfile.write_all(&version_bytes)?;
+            tmpfile.write_i32::<BigEndian>(bad_version)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new(tmpfile).unwrap_err() {

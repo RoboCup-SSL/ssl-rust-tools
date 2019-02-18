@@ -1,5 +1,6 @@
 use crate::protos::messages_robocup_ssl_referee;
 use crate::protos::messages_robocup_ssl_wrapper;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use protobuf;
 use protobuf::Message as ProtobufMessage;
 use std::io;
@@ -67,22 +68,15 @@ impl Message {
     // TODO(dschwab): If I add Seek trait bound, can automatically
     // rewind if message parsing fails
     pub fn parse_from_reader<T: Read>(reader: &mut T) -> Result<Message, MessageError> {
-        let mut timestamp = [0u8; 8];
-        reader.read_exact(&mut timestamp)?;
-        let timestamp: i64 = unsafe { std::mem::transmute(timestamp) };
+        let timestamp = reader.read_i64::<BigEndian>()?;
 
-        let mut msg_type = [0u8; 4];
-        reader.read_exact(&mut msg_type)?;
-        let msg_type: i32 = unsafe { std::mem::transmute(msg_type) };
+        let msg_type = reader.read_i32::<BigEndian>()?;
 
-        let mut msg_size = [0u8; 4];
-        reader.read_exact(&mut msg_size)?;
-        let msg_size: i32 = unsafe { std::mem::transmute(msg_size) };
+        let msg_size = reader.read_i32::<BigEndian>()?;
         if msg_size < 0 {
             return Err(MessageError::InvalidMessageSize { msg_size });
         }
 
-        // TODO(dschwab): Parse message type
         match msg_type {
             BLANK_TYPE => Ok(Message::parse_blank_msg_from_reader(
                 reader, timestamp, msg_size,
@@ -183,7 +177,6 @@ impl Message {
     }
 
     pub fn write_to_vec(&self, v: &mut Vec<u8>) -> Result<(), MessageError> {
-        let timestamp_bytes: [u8; 8] = unsafe { std::mem::transmute(self.timestamp) };
         let (msg_type, msg_bytes) = match self.msg_type {
             MessageType::Blank => (BLANK_TYPE, vec![]),
             MessageType::Unknown(ref msg_bytes) => (UNKNOWN_TYPE, msg_bytes.clone()),
@@ -191,12 +184,10 @@ impl Message {
             MessageType::Refbox2013(ref msg) => (REFBOX2013_TYPE, msg.write_to_bytes()?),
             MessageType::Vision2014(ref msg) => (VISION2014_TYPE, msg.write_to_bytes()?),
         };
-        let msg_type_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_type) };
-        let msg_size_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_bytes.len() as i32) };
 
-        v.write_all(&timestamp_bytes)?;
-        v.write_all(&msg_type_bytes)?;
-        v.write_all(&msg_size_bytes)?;
+        v.write_i64::<BigEndian>(self.timestamp)?;
+        v.write_i32::<BigEndian>(msg_type)?;
+        v.write_i32::<BigEndian>(msg_bytes.len() as i32)?;
         v.write_all(&msg_bytes)?;
 
         Ok(())
@@ -226,6 +217,7 @@ mod tests {
     use super::*;
     use crate::test_utils::message::*;
     use crate::test_utils::protos::*;
+    use byteorder::WriteBytesExt;
     use proptest::prelude::*;
     use protobuf::Message as ProtobufMessage;
     use std::io;
@@ -244,12 +236,9 @@ mod tests {
         msg_size: i32,
         msg_bytes: &[u8],
     ) -> Result<(), TestCaseError> {
-        let timestamp_bytes: [u8; 8] = unsafe { std::mem::transmute(timestamp) };
-        writer.write_all(&timestamp_bytes)?;
-        let msg_type_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_type) };
-        writer.write_all(&msg_type_bytes)?;
-        let msg_size_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_size) };
-        writer.write_all(&msg_size_bytes)?;
+        writer.write_i64::<BigEndian>(timestamp)?;
+        writer.write_i32::<BigEndian>(msg_type)?;
+        writer.write_i32::<BigEndian>(msg_size)?;
         writer.write_all(msg_bytes)?;
 
         Ok(())
