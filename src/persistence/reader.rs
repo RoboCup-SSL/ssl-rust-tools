@@ -110,8 +110,35 @@ mod tests {
     extern crate tempfile;
 
     use super::*;
+    use crate::test_utils::reader::*;
     use proptest::prelude::*;
     use std::io::Write;
+
+    impl From<LogReaderError> for TestCaseError {
+        fn from(error: LogReaderError) -> Self {
+            TestCaseError::fail(format!("{}", error))
+        }
+    }
+
+    fn write_random_log(
+        messages: &Vec<message::Message>,
+    ) -> Result<Vec<u8>, message::MessageError> {
+        // TODO(dschwab): probably better to pre-calculate size and
+        // reserve all the memory at once.
+        let mut output = Vec::<u8>::new();
+
+        // write the log header
+        output.extend(EXPECTED_HEADER.iter().cloned());
+        let version_bytes: [u8; 4] = unsafe { std::mem::transmute(SUPPORTED_VERSION) };
+        output.extend(version_bytes.iter().cloned());
+
+        // write all the messages
+        for message in messages {
+            message.write_to_vec(&mut output)?;
+        }
+
+        Ok(output)
+    }
 
     proptest! {
         #[test]
@@ -201,5 +228,47 @@ mod tests {
                 },
             };
         }
+
+        #[test]
+        fn read_messages(messages in random_messages(1, 10)) {
+            let log_bytes = write_random_log(&messages)?;
+
+            let mut reader = LogReader::new(log_bytes.as_slice())?;
+            for i in 0..messages.len() {
+                let expected_msg = &messages[i];
+                let message = reader.read_message()?;
+                prop_assert_eq!(&message, expected_msg);
+            }
+        }
+
+        #[test]
+        fn iterate_messages(messages in random_messages(1, 10)) {
+            let log_bytes = write_random_log(&messages)?;
+
+            let reader = LogReader::new(log_bytes.as_slice())?;
+            for (expected_msg, message) in messages.iter().zip(reader.into_iter()) {
+                match message {
+                    Ok(message) => prop_assert_eq!(&message, expected_msg),
+                    Err(e) => return Err(e.into())
+                }
+            }
+        }
     }
+
+    #[test]
+    fn read_messages_empty() {
+        let messages = Vec::<message::Message>::new();
+        let log_bytes = write_random_log(&messages).unwrap();
+
+        let mut reader = LogReader::new(log_bytes.as_slice()).unwrap();
+
+        match reader.read_message().unwrap_err() {
+            LogReaderError::Io(e) => match e.kind() {
+                io::ErrorKind::UnexpectedEof => {},
+                _ => panic!("Unexpected io error kind {:?}", e),
+            },
+            e @ _ => panic!("Unexpectged error type {}", e),
+        };
+    }
+
 }
