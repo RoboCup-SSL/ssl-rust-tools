@@ -34,7 +34,7 @@ impl From<message::MessageError> for LogReaderError {
 }
 
 #[derive(Debug)]
-pub struct LogReader<T: Read + Seek> {
+pub struct LogReader<T: Read> {
     reader: BufReader<T>,
 }
 
@@ -47,7 +47,7 @@ const EXPECTED_HEADER: [u8; 12] = [
 
 const SUPPORTED_VERSION: i32 = 1;
 
-impl<T: Read + Seek> LogReader<T> {
+impl<T: Read> LogReader<T> {
     pub fn new(mut reader: T) -> Result<LogReader<T>, LogReaderError> {
         let mut reader = BufReader::new(reader);
 
@@ -81,6 +81,26 @@ impl LogReader<File> {
     pub fn new_from_path(log_path: &Path) -> Result<LogReader<File>, LogReaderError> {
         let f = File::open(log_path)?;
         LogReader::new(f)
+    }
+}
+
+impl<T> Iterator for LogReader<T>
+where
+    T: Read,
+{
+    type Item = Result<message::Message, LogReaderError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.read_message() {
+            Err(error) => match error {
+                LogReaderError::Io(ref err) => match err.kind() {
+                    io::ErrorKind::UnexpectedEof => None,
+                    _ => Some(Err(error)),
+                },
+                _ => Some(Err(error)),
+            },
+            o @ Ok(_) => Some(o),
+        }
     }
 }
 
