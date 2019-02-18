@@ -14,5 +14,8 @@ failure = { version = "0.1" }
 protobuf = { version = "2.3" }
 
 [dev-dependencies]
+# Example deps
+clap = "2.32"
+# Test deps
 proptest = "0.9"
 tempfile = "3"
