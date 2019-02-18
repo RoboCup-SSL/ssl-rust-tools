@@ -10,6 +10,7 @@ protoc-rust = "2.2"
 
 [dependencies]
 byteorder = "1"
+chrono = "0.4"
 failure = { version = "0.1" }
 lazy_static = "1.2"
 socket2 = { version = "0.3", features = ["reuseport"] }
