@@ -28,7 +28,7 @@ impl From<message::MessageError> for LogReaderError {
     fn from(error: message::MessageError) -> Self {
         match error {
             message::MessageError::Io(e) => LogReaderError::Io(e),
-            e @ _ => LogReaderError::Message(e),
+            e => LogReaderError::Message(e),
         }
     }
 }
@@ -38,11 +38,8 @@ pub struct LogReader<T: Read> {
     reader: BufReader<T>,
 }
 
-// TODO(dschwab): Is there a better way of doing the individual
-// character conversions without requiring lazy_static?
 const EXPECTED_HEADER: [u8; 12] = [
-    'S' as u8, 'S' as u8, 'L' as u8, '_' as u8, 'L' as u8, 'O' as u8, 'G' as u8, '_' as u8,
-    'F' as u8, 'I' as u8, 'L' as u8, 'E' as u8,
+    b'S', b'S', b'L', b'_', b'L', b'O', b'G', b'_', b'F', b'I', b'L', b'E',
 ];
 
 const SUPPORTED_VERSION: i32 = 1;
@@ -264,7 +261,7 @@ mod tests {
 
         match reader.read_message().unwrap_err() {
             LogReaderError::Io(e) => match e.kind() {
-                io::ErrorKind::UnexpectedEof => {},
+                io::ErrorKind::UnexpectedEof => {}
                 _ => panic!("Unexpected io error kind {:?}", e),
             },
             e @ _ => panic!("Unexpectged error type {}", e),
