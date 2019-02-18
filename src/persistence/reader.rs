@@ -1,3 +1,4 @@
+use super::message;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -13,11 +14,22 @@ pub enum LogReaderError {
     InvalidHeader { header: [u8; 12] },
     #[fail(display = "unsupported log version: {}", version)]
     UnsupportedVersion { version: i32 },
+    #[fail(display = "{}", _0)]
+    Message(#[fail(cause)] message::MessageError),
 }
 
 impl From<io::Error> for LogReaderError {
     fn from(error: io::Error) -> Self {
         LogReaderError::Io(error)
+    }
+}
+
+impl From<message::MessageError> for LogReaderError {
+    fn from(error: message::MessageError) -> Self {
+        match error {
+            message::MessageError::Io(e) => LogReaderError::Io(e),
+            e @ _ => LogReaderError::Message(e),
+        }
     }
 }
 
@@ -58,6 +70,10 @@ impl<T: Read + Seek> LogReader<T> {
         }
 
         Ok(LogReader { reader })
+    }
+
+    fn read_message(&mut self) -> Result<message::Message, LogReaderError> {
+        Ok(message::Message::parse_from_reader(&mut self.reader)?)
     }
 }
 
