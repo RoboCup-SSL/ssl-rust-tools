@@ -11,6 +11,7 @@ protoc-rust = "2.2"
 [dependencies]
 byteorder = "1"
 failure = { version = "0.1" }
+lazy_static = "1.2"
 protobuf = { version = "2.3" }
 
 [dev-dependencies]
