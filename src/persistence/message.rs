@@ -56,10 +56,10 @@ pub enum MessageType {
 #[derive(Debug)]
 pub struct Message {
     // receiver timestamp in ns
-    timestamp: i64,
+    pub timestamp: i64,
     // enum which contains the parse message or bytes depending on the
     // type
-    msg_type: MessageType,
+    pub msg_type: MessageType,
 }
 
 impl Message {
