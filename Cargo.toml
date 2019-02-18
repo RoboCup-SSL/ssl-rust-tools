@@ -9,6 +9,7 @@ glob = { version = "0.2" }
 protoc-rust = "2.2"
 
 [dependencies]
+byteorder = "1"
 failure = { version = "0.1" }
 protobuf = { version = "2.3" }
 
