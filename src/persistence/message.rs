@@ -1,8 +1,9 @@
 use crate::protos::messages_robocup_ssl_referee;
 use crate::protos::messages_robocup_ssl_wrapper;
 use protobuf;
+use protobuf::Message as ProtobufMessage;
 use std::io;
-use std::io::Read;
+use std::io::{Read, Write};
 
 #[derive(Debug, Fail)]
 pub enum MessageError {
@@ -35,7 +36,7 @@ const VISION2010_TYPE: i32 = 2;
 const REFBOX2013_TYPE: i32 = 3;
 const VISION2014_TYPE: i32 = 4;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum MessageType {
     // Empty message
     Blank,
@@ -53,7 +54,7 @@ pub enum MessageType {
     Unknown(Vec<u8>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Message {
     // receiver timestamp in ns
     pub timestamp: i64,
@@ -182,11 +183,38 @@ impl Message {
     }
 
     pub fn write_to_vec(&self, v: &mut Vec<u8>) -> Result<(), MessageError> {
+        let timestamp_bytes: [u8; 8] = unsafe { std::mem::transmute(self.timestamp) };
+        let (msg_type, msg_bytes) = match self.msg_type {
+            MessageType::Blank => (BLANK_TYPE, vec![]),
+            MessageType::Unknown(ref msg_bytes) => (UNKNOWN_TYPE, msg_bytes.clone()),
+            MessageType::Vision2010(ref msg_bytes) => (VISION2010_TYPE, msg_bytes.clone()),
+            MessageType::Refbox2013(ref msg) => (REFBOX2013_TYPE, msg.write_to_bytes()?),
+            MessageType::Vision2014(ref msg) => (VISION2014_TYPE, msg.write_to_bytes()?),
+        };
+        let msg_type_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_type) };
+        let msg_size_bytes: [u8; 4] = unsafe { std::mem::transmute(msg_bytes.len() as i32) };
+
+        v.write_all(&timestamp_bytes)?;
+        v.write_all(&msg_type_bytes)?;
+        v.write_all(&msg_size_bytes)?;
+        v.write_all(&msg_bytes)?;
+
         Ok(())
     }
 
     pub fn write_to_bytes(&self) -> Result<Vec<u8>, MessageError> {
-        Ok(vec![])
+        let vec_size = 16
+            + match self.msg_type {
+                MessageType::Blank => 0,
+                MessageType::Unknown(ref msg_bytes) | MessageType::Vision2010(ref msg_bytes) => {
+                    msg_bytes.len()
+                }
+                MessageType::Refbox2013(ref msg) => msg.compute_size() as usize,
+                MessageType::Vision2014(ref msg) => msg.compute_size() as usize,
+            };
+        let mut bytes = Vec::<u8>::with_capacity(vec_size);
+        self.write_to_vec(&mut bytes)?;
+        Ok(bytes)
     }
 }
 
@@ -196,12 +224,12 @@ mod tests {
     extern crate tempfile;
 
     use super::*;
+    use crate::test_utils::message::*;
+    use crate::test_utils::protos::*;
     use proptest::prelude::*;
     use protobuf::Message as ProtobufMessage;
     use std::io;
     use std::io::{Seek, Write};
-    use crate::test_utils::protos::*;
-    use crate::test_utils::message::*;
 
     impl From<MessageError> for TestCaseError {
         fn from(error: MessageError) -> Self {
@@ -226,7 +254,6 @@ mod tests {
 
         Ok(())
     }
-
 
     proptest! {
         #[test]
@@ -567,6 +594,91 @@ mod tests {
                     return Err(TestCaseError::fail(message));
                 }
             }
+        }
+
+        #[test]
+        fn write_blank_to_vec(blank_msg in random_blank_msg_strategy()) {
+            let mut blank_msg_bytes = Vec::<u8>::new();
+            blank_msg.write_to_vec(&mut blank_msg_bytes)?;
+
+            let parsed_blank_msg = Message::parse_from_reader(&mut blank_msg_bytes.as_slice())?;
+            prop_assert_eq!(blank_msg, parsed_blank_msg);
+        }
+
+        #[test]
+        fn write_blank_to_bytes(blank_msg in random_blank_msg_strategy()) {
+            let mut blank_msg_bytes = blank_msg.write_to_bytes()?;
+
+            let parsed_blank_msg = Message::parse_from_reader(&mut blank_msg_bytes.as_slice())?;
+            prop_assert_eq!(blank_msg, parsed_blank_msg);
+        }
+
+        #[test]
+        fn write_unknown_to_vec(unknown_msg in random_unknown_msg_strategy()) {
+            let mut unknown_msg_bytes = Vec::<u8>::new();
+            unknown_msg.write_to_vec(&mut unknown_msg_bytes)?;
+
+            let parsed_unknown_msg = Message::parse_from_reader(&mut unknown_msg_bytes.as_slice())?;
+            prop_assert_eq!(unknown_msg, parsed_unknown_msg);
+        }
+
+        #[test]
+        fn write_unknown_to_bytes(unknown_msg in random_unknown_msg_strategy()) {
+            let mut unknown_msg_bytes = unknown_msg.write_to_bytes()?;
+
+            let parsed_unknown_msg = Message::parse_from_reader(&mut unknown_msg_bytes.as_slice())?;
+            prop_assert_eq!(unknown_msg, parsed_unknown_msg);
+        }
+
+        #[test]
+        fn write_vision2010_to_vec(vision2010_msg in random_vision2010_msg_strategy()) {
+            let mut vision2010_msg_bytes = Vec::<u8>::new();
+            vision2010_msg.write_to_vec(&mut vision2010_msg_bytes)?;
+
+            let parsed_vision2010_msg = Message::parse_from_reader(&mut vision2010_msg_bytes.as_slice())?;
+            prop_assert_eq!(vision2010_msg, parsed_vision2010_msg);
+        }
+
+        #[test]
+        fn write_vision2010_to_bytes(vision2010_msg in random_vision2010_msg_strategy()) {
+            let mut vision2010_msg_bytes = vision2010_msg.write_to_bytes()?;
+
+            let parsed_vision2010_msg = Message::parse_from_reader(&mut vision2010_msg_bytes.as_slice())?;
+            prop_assert_eq!(vision2010_msg, parsed_vision2010_msg);
+        }
+
+        #[test]
+        fn write_refbox2013_to_vec(refbox2013_msg in random_refbox2013_msg_strategy()) {
+            let mut refbox2013_msg_bytes = Vec::<u8>::new();
+            refbox2013_msg.write_to_vec(&mut refbox2013_msg_bytes)?;
+
+            let parsed_refbox2013_msg = Message::parse_from_reader(&mut refbox2013_msg_bytes.as_slice())?;
+            prop_assert_eq!(refbox2013_msg, parsed_refbox2013_msg);
+        }
+
+        #[test]
+        fn write_refbox2013_to_bytes(refbox2013_msg in random_refbox2013_msg_strategy()) {
+            let mut refbox2013_msg_bytes = refbox2013_msg.write_to_bytes()?;
+
+            let parsed_refbox2013_msg = Message::parse_from_reader(&mut refbox2013_msg_bytes.as_slice())?;
+            prop_assert_eq!(refbox2013_msg, parsed_refbox2013_msg);
+        }
+
+        #[test]
+        fn write_vision2014_to_vec(vision2014_msg in random_vision2014_msg_strategy()) {
+            let mut vision2014_msg_bytes = Vec::<u8>::new();
+            vision2014_msg.write_to_vec(&mut vision2014_msg_bytes)?;
+
+            let parsed_vision2014_msg = Message::parse_from_reader(&mut vision2014_msg_bytes.as_slice())?;
+            prop_assert_eq!(vision2014_msg, parsed_vision2014_msg);
+        }
+
+        #[test]
+        fn write_vision2014_to_bytes(vision2014_msg in random_vision2014_msg_strategy()) {
+            let mut vision2014_msg_bytes = vision2014_msg.write_to_bytes()?;
+
+            let parsed_vision2014_msg = Message::parse_from_reader(&mut vision2014_msg_bytes.as_slice())?;
+            prop_assert_eq!(vision2014_msg, parsed_vision2014_msg);
         }
     }
 }
