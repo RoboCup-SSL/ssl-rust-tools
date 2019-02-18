@@ -265,7 +265,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -288,7 +288,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -316,7 +316,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -357,7 +357,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -421,7 +421,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -465,7 +465,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -492,7 +492,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -532,7 +532,7 @@ mod tests {
 
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -564,7 +564,7 @@ mod tests {
             // expect the required fields to cause parsing errors.
             match Message::parse_from_reader(&mut tmpfile) {
                 Ok(_) => {
-                    let message = format!("Message parsed correctly when it shouldn't.");
+                    let message = "Message parsed correctly when it shouldn't.";
                     return Err(TestCaseError::fail(message));
                 },
                 Err(err) => match err {
@@ -607,7 +607,7 @@ mod tests {
 
         #[test]
         fn write_blank_to_bytes(blank_msg in random_blank_msg_strategy()) {
-            let mut blank_msg_bytes = blank_msg.write_to_bytes()?;
+            let blank_msg_bytes = blank_msg.write_to_bytes()?;
 
             let parsed_blank_msg = Message::parse_from_reader(&mut blank_msg_bytes.as_slice())?;
             prop_assert_eq!(blank_msg, parsed_blank_msg);
@@ -624,7 +624,7 @@ mod tests {
 
         #[test]
         fn write_unknown_to_bytes(unknown_msg in random_unknown_msg_strategy()) {
-            let mut unknown_msg_bytes = unknown_msg.write_to_bytes()?;
+            let unknown_msg_bytes = unknown_msg.write_to_bytes()?;
 
             let parsed_unknown_msg = Message::parse_from_reader(&mut unknown_msg_bytes.as_slice())?;
             prop_assert_eq!(unknown_msg, parsed_unknown_msg);
@@ -641,7 +641,7 @@ mod tests {
 
         #[test]
         fn write_vision2010_to_bytes(vision2010_msg in random_vision2010_msg_strategy()) {
-            let mut vision2010_msg_bytes = vision2010_msg.write_to_bytes()?;
+            let vision2010_msg_bytes = vision2010_msg.write_to_bytes()?;
 
             let parsed_vision2010_msg = Message::parse_from_reader(&mut vision2010_msg_bytes.as_slice())?;
             prop_assert_eq!(vision2010_msg, parsed_vision2010_msg);
@@ -658,7 +658,7 @@ mod tests {
 
         #[test]
         fn write_refbox2013_to_bytes(refbox2013_msg in random_refbox2013_msg_strategy()) {
-            let mut refbox2013_msg_bytes = refbox2013_msg.write_to_bytes()?;
+            let refbox2013_msg_bytes = refbox2013_msg.write_to_bytes()?;
 
             let parsed_refbox2013_msg = Message::parse_from_reader(&mut refbox2013_msg_bytes.as_slice())?;
             prop_assert_eq!(refbox2013_msg, parsed_refbox2013_msg);
@@ -675,7 +675,7 @@ mod tests {
 
         #[test]
         fn write_vision2014_to_bytes(vision2014_msg in random_vision2014_msg_strategy()) {
-            let mut vision2014_msg_bytes = vision2014_msg.write_to_bytes()?;
+            let vision2014_msg_bytes = vision2014_msg.write_to_bytes()?;
 
             let parsed_vision2014_msg = Message::parse_from_reader(&mut vision2014_msg_bytes.as_slice())?;
             prop_assert_eq!(vision2014_msg, parsed_vision2014_msg);

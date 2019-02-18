@@ -118,7 +118,7 @@ mod tests {
     }
 
     fn write_random_log(
-        messages: &Vec<message::Message>,
+        messages: &[message::Message],
     ) -> Result<Vec<u8>, message::MessageError> {
         // TODO(dschwab): probably better to pre-calculate size and
         // reserve all the memory at once.
@@ -153,7 +153,7 @@ mod tests {
                 LogReaderError::InvalidHeader { header } => {
                     prop_assert_eq!(header, bad_header);
                 }
-                e @ _ => {
+                e => {
                     let message = format!("Unexpected error type. {}", e);
                     return Err(TestCaseError::fail(message));
                 },
@@ -175,7 +175,7 @@ mod tests {
                 LogReaderError::InvalidHeader { header } => {
                     prop_assert_eq!(header, bad_header);
                 }
-                e @ _ => {
+                e => {
                     let message = format!("Unexpected error type. {}", e);
                     return Err(TestCaseError::fail(message));
                 },
@@ -197,7 +197,7 @@ mod tests {
                 LogReaderError::UnsupportedVersion { version } => {
                     prop_assert_eq!(version, bad_version);
                 }
-                e @ _ => {
+                e => {
                     let message = format!("Unexpected error type. {}", e);
                     return Err(TestCaseError::fail(message));
                 },
@@ -219,7 +219,7 @@ mod tests {
                 LogReaderError::UnsupportedVersion { version } => {
                     prop_assert_eq!(version, bad_version);
                 }
-                e @ _ => {
+                e => {
                     let message = format!("Unexpected error type. {}", e);
                     return Err(TestCaseError::fail(message));
                 },
@@ -231,8 +231,7 @@ mod tests {
             let log_bytes = write_random_log(&messages)?;
 
             let mut reader = LogReader::new(log_bytes.as_slice())?;
-            for i in 0..messages.len() {
-                let expected_msg = &messages[i];
+            for expected_msg in &messages {
                 let message = reader.read_message()?;
                 prop_assert_eq!(&message, expected_msg);
             }
@@ -243,7 +242,7 @@ mod tests {
             let log_bytes = write_random_log(&messages)?;
 
             let reader = LogReader::new(log_bytes.as_slice())?;
-            for (expected_msg, message) in messages.iter().zip(reader.into_iter()) {
+            for (expected_msg, message) in messages.iter().zip(reader) {
                 match message {
                     Ok(message) => prop_assert_eq!(&message, expected_msg),
                     Err(e) => return Err(e.into())
@@ -264,7 +263,7 @@ mod tests {
                 io::ErrorKind::UnexpectedEof => {}
                 _ => panic!("Unexpected io error kind {:?}", e),
             },
-            e @ _ => panic!("Unexpectged error type {}", e),
+            e => panic!("Unexpectged error type {}", e),
         };
     }
 

@@ -4,7 +4,6 @@ use crate::protos::messages_robocup_ssl_geometry;
 use crate::protos::messages_robocup_ssl_referee;
 use crate::protos::messages_robocup_ssl_wrapper;
 use proptest::prelude::*;
-use protobuf::Message as ProtobufMessage;
 
 
 fn one_of_protobuf_enum<T: protobuf::ProtobufEnum>() -> proptest::strategy::Union<Just<T>>
