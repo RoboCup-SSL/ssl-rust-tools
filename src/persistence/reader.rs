@@ -71,6 +71,14 @@ impl<T: Read> LogReader<T> {
     fn read_message(&mut self) -> Result<message::Message, LogReaderError> {
         Ok(message::Message::parse_from_reader(&mut self.reader)?)
     }
+
+    pub fn inner(&self) -> &BufReader<T> {
+        &self.reader
+    }
+
+    pub fn inner_mut(&mut self) -> &mut BufReader<T> {
+        &mut self.reader
+    }
 }
 
 impl LogReader<File> {
@@ -184,7 +192,7 @@ mod tests {
             // create temp file with the bad version number
             let mut tmpfile = tempfile::NamedTempFile::new()?;
             tmpfile.write_all(&EXPECTED_HEADER)?;
-            tmpfile.write_i32::<BigEndian>(bad_version)?;            
+            tmpfile.write_i32::<BigEndian>(bad_version)?;
             tmpfile.seek(io::SeekFrom::Start(0))?;
 
             match LogReader::new_from_path(tmpfile.path()).unwrap_err() {
