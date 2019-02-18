@@ -48,7 +48,7 @@ const EXPECTED_HEADER: [u8; 12] = [
 const SUPPORTED_VERSION: i32 = 1;
 
 impl<T: Read> LogReader<T> {
-    pub fn new(mut reader: T) -> Result<LogReader<T>, LogReaderError> {
+    pub fn new(reader: T) -> Result<LogReader<T>, LogReaderError> {
         let mut reader = BufReader::new(reader);
 
         // read first 12 bytes, which should equal "SSL_LOG_FILE"
