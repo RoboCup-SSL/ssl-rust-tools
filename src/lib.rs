@@ -3,6 +3,7 @@ extern crate failure;
 #[macro_use]
 extern crate lazy_static;
 
+pub mod labeler;
 pub mod persistence;
 pub mod player;
 pub mod protos;
