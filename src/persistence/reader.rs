@@ -68,7 +68,7 @@ impl<T: Read> LogReader<T> {
         Ok(LogReader { reader })
     }
 
-    fn read_message(&mut self) -> Result<message::Message, LogReaderError> {
+    pub fn read_message(&mut self) -> Result<message::Message, LogReaderError> {
         Ok(message::Message::parse_from_reader(&mut self.reader)?)
     }
 
