@@ -140,7 +140,11 @@ impl<T: Write + Seek> LabelerDataWriter<T> {
 
 impl LabelerDataWriter<File> {
     pub fn new_from_path(log_path: &Path) -> LabelerDataWriterResult<LabelerDataWriter<File>> {
-        let f = OpenOptions::new().write(true).open(log_path)?;
+        let f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(log_path)?;
         LabelerDataWriter::new(f)
     }
 }
