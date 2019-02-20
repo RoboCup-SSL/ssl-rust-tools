@@ -1,4 +1,5 @@
 use crate::persistence::message;
+use crate::protos::log_labeler_data;
 use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
 use crate::test_utils::message as test_utils_message;
 use crate::test_utils::protos as test_utils_protos;
@@ -56,7 +57,7 @@ prop_compose! {
             match ref_msg.msg_type {
                 message::MessageType::Refbox2013(ref mut ref_msg) => ref_msg.set_stage(not_running_stage),
                 _ => panic!("Strategy generated non Refbox2013 message type."),
-            };            
+            };
 
             ref_msg
         }
@@ -108,4 +109,63 @@ prop_compose! {
 
             frame_msgs
     }
+}
+
+prop_compose! {
+    pub fn random_no_ref_frame_group_msg_strategy(min_num_cameras: u32, max_num_cameras: u32)
+        (camera_msgs in no_camera_repeats_strategy(min_num_cameras, max_num_cameras)
+        ) -> log_labeler_data::LabelerFrameGroup {
+            let mut frame_group_msg = log_labeler_data::LabelerFrameGroup::new();
+            for camera_msg in camera_msgs {
+                let mut frame_msg = log_labeler_data::LabelerFrame::new();
+                frame_msg.set_timestamp(camera_msg.timestamp as u64);
+                match camera_msg.msg_type {
+                    message::MessageType::Vision2014(vision_msg) => frame_msg.set_vision_frame(vision_msg),
+                    _ => panic!("Strategy returned non Vision2014 type."),
+                };
+                frame_group_msg.mut_frames().push(frame_msg)
+            }
+
+            frame_group_msg
+        }
+}
+
+prop_compose! {
+    pub fn random_frames_and_access_pattern_strategy(min_num_cameras: u32,
+                                                     max_num_cameras: u32,
+                                                     min_num_frames: usize,
+                                                     max_num_frames: usize)
+        (random_frame_group_msgs in
+         proptest::collection::vec(random_no_ref_frame_group_msg_strategy(min_num_cameras, max_num_cameras),
+                                   min_num_frames..max_num_frames))
+        (access_pattern in proptest::collection::vec(0..random_frame_group_msgs.len(), random_frame_group_msgs.len()),
+         random_frame_group_msgs in Just(random_frame_group_msgs)
+        ) -> (Vec<log_labeler_data::LabelerFrameGroup>, Vec<usize>) {
+             (random_frame_group_msgs, access_pattern)
+        }
+}
+
+prop_compose! {
+    pub fn random_frames_and_ranges_strategy(min_num_cameras: u32,
+                                             max_num_cameras: u32,
+                                             min_num_frames: usize,
+                                             max_num_frames: usize)
+        (random_frame_group_msgs in
+         proptest::collection::vec(random_no_ref_frame_group_msg_strategy(min_num_cameras, max_num_cameras),
+                                   min_num_frames..max_num_frames))
+        (index1 in proptest::collection::vec(0..(random_frame_group_msgs.len() - 1), random_frame_group_msgs.len()),
+         index2 in proptest::collection::vec(0..random_frame_group_msgs.len(), random_frame_group_msgs.len()),
+         random_frame_group_msgs in Just(random_frame_group_msgs)
+        ) -> (Vec<log_labeler_data::LabelerFrameGroup>, Vec<(usize, usize)>) {
+            let range_indexes: Vec<(usize, usize)> = index1
+                .iter()
+                .cloned()
+                .zip(index2)
+                .filter(|(a, b)| *a != *b)
+                .map(|(a, b)| (std::cmp::min(a, b),
+                               std::cmp::max(a, b)))
+                .collect();
+
+            (random_frame_group_msgs, range_indexes)
+        }
 }
