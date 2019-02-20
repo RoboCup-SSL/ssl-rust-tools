@@ -37,7 +37,7 @@ const VISION2010_TYPE: i32 = 2;
 const REFBOX2013_TYPE: i32 = 3;
 const VISION2014_TYPE: i32 = 4;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum MessageType {
     // Empty message
     Blank,
@@ -55,7 +55,7 @@ pub enum MessageType {
     Unknown(Vec<u8>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Message {
     // receiver timestamp in ns
     pub timestamp: i64,
