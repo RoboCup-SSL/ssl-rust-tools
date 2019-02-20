@@ -1,3 +1,4 @@
+use super::*;
 use crate::persistence::message::{Message, MessageType};
 use crate::protos::log_labeler_data;
 use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
@@ -9,11 +10,6 @@ use std::fs::{File, OpenOptions};
 use std::io;
 use std::io::{BufWriter, Seek, SeekFrom, Write};
 use std::path::Path;
-
-const LABELER_DATA_HEADER: [u8; 16] = [
-    b'S', b'S', b'L', b'_', b'L', b'A', b'b', b'E', b'L', b'E', b'R', b'_', b'D', b'A', b'T', b'A',
-];
-const LABELER_DATA_VERSION: u32 = 1u32;
 
 #[derive(Debug, Fail)]
 pub enum LabelerDataWriterError {
@@ -545,7 +541,7 @@ mod tests {
 
             let frame_group = get_frame_at(Cursor::new(buffer.as_mut_slice()), metadata.get_message_offsets()[1])?;
             prop_assert_eq!(frame_group.get_frames().len(), 1 + (camera_msgs.len() - num_taken_for_first_frame));
-            
+
             let ref_frame = &frame_group.get_frames()[0];
             prop_assert_eq!(ref_frame.get_timestamp(), new_running_ref_msg.timestamp as u64);
             prop_assert!(ref_frame.has_referee_frame());
@@ -563,7 +559,7 @@ mod tests {
                 if let MessageType::Vision2014(ref vision_msg) = camera_msg.msg_type {
                     prop_assert_eq!(camera_frame.get_vision_frame(), vision_msg);
                 }
-            }            
+            }
 
         }
 
