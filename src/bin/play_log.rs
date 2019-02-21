@@ -1,9 +1,6 @@
-extern crate clap;
-extern crate ssl_log_tools;
 use clap::{App, Arg};
 use ssl_log_tools::persistence::reader;
 use ssl_log_tools::player;
-use std::io::{SeekFrom, Seek};
 use std::path::Path;
 
 fn main() {

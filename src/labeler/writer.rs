@@ -157,7 +157,7 @@ impl<T: Write + Seek> Drop for LabelerDataWriter<T> {
 
         let mut metadata = log_labeler_data::LabelerMetadata::new();
         metadata.set_num_cameras(self.num_cameras);
-        let message_offsets = self.message_offsets.take().unwrap_or(vec![]);
+        let message_offsets = self.message_offsets.take().unwrap_or_else(Vec::new);
         metadata.set_message_offsets(message_offsets);
 
         let metadata_bytes = metadata.write_to_bytes().unwrap();

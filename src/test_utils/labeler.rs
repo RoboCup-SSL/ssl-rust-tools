@@ -2,7 +2,6 @@ use crate::persistence::message;
 use crate::protos::log_labeler_data;
 use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
 use crate::test_utils::message as test_utils_message;
-use crate::test_utils::protos as test_utils_protos;
 use proptest::prelude::*;
 
 prop_compose! {

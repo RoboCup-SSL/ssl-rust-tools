@@ -8,6 +8,11 @@ use std::io;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
+// This is necessary for the write_to_bytes method used below, but
+// rust is generating a warning.
+#[allow(unused_imports)]
+use protobuf::Message;
+
 #[derive(Debug, Fail)]
 pub enum LabelerDataReaderError {
     #[fail(display = "{}", _0)]
@@ -125,7 +130,7 @@ impl<T: Read + Seek> LabelerDataReader<T> {
 
     fn _read_messages(
         &self,
-        message_offsets: &Vec<u64>,
+        message_offsets: &[u64],
     ) -> LabelerDataReaderResult<Vec<log_labeler_data::LabelerFrameGroup>> {
         let mut frame_groups = Vec::<log_labeler_data::LabelerFrameGroup>::new();
 
@@ -149,9 +154,7 @@ impl<T: Read + Seek> LabelerDataReader<T> {
             .metadata
             .get_message_offsets()
             .get(start..end)?
-            .iter()
-            .cloned()
-            .collect();
+            .to_vec();
 
         Some(self._read_messages(&offsets).ok()?)
     }
@@ -161,9 +164,7 @@ impl<T: Read + Seek> LabelerDataReader<T> {
             .metadata
             .get_message_offsets()
             .get(start..)?
-            .iter()
-            .cloned()
-            .collect();
+            .to_vec();
 
         Some(self._read_messages(&offsets).ok()?)
     }
