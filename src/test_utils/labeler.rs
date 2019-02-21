@@ -1,6 +1,6 @@
 use crate::persistence::message;
 use crate::protos::log_labeler_data;
-use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
+use crate::protos::messages_robocup_ssl_referee::{SSL_Referee_Command, SSL_Referee_Stage};
 use crate::test_utils::message as test_utils_message;
 use proptest::prelude::*;
 
@@ -21,27 +21,7 @@ prop_compose! {
 }
 
 prop_compose! {
-    pub fn running_ref_msg()
-        (mut ref_msg in test_utils_message::random_refbox2013_msg_strategy(),
-         running_stage in prop_oneof![
-             Just(SSL_Referee_Stage::NORMAL_FIRST_HALF),
-             Just(SSL_Referee_Stage::NORMAL_SECOND_HALF),
-             Just(SSL_Referee_Stage::EXTRA_FIRST_HALF),
-             Just(SSL_Referee_Stage::EXTRA_SECOND_HALF),
-         ]) -> message::Message {
-            match ref_msg.msg_type {
-                message::MessageType::Refbox2013(ref mut ref_msg) => ref_msg.set_stage(running_stage),
-                _ => panic!("Strategy generated non Refbox2013 message type."),
-            };
-
-            ref_msg
-        }
-}
-
-prop_compose! {
-    pub fn not_running_ref_msg()
-        (mut ref_msg in test_utils_message::random_refbox2013_msg_strategy(),
-         not_running_stage in prop_oneof![
+    pub fn not_running_stage_strategy()(ref_stage in prop_oneof![
              Just(SSL_Referee_Stage::NORMAL_FIRST_HALF_PRE),
              Just(SSL_Referee_Stage::NORMAL_HALF_TIME),
              Just(SSL_Referee_Stage::NORMAL_SECOND_HALF_PRE),
@@ -52,9 +32,111 @@ prop_compose! {
              Just(SSL_Referee_Stage::PENALTY_SHOOTOUT_BREAK),
              Just(SSL_Referee_Stage::PENALTY_SHOOTOUT),
              Just(SSL_Referee_Stage::POST_GAME),
+    ]) -> SSL_Referee_Stage {
+        ref_stage
+    }
+}
+
+prop_compose! {
+    pub fn running_stage_strategy()(ref_stage in prop_oneof![
+             Just(SSL_Referee_Stage::NORMAL_FIRST_HALF),
+             Just(SSL_Referee_Stage::NORMAL_SECOND_HALF),
+             Just(SSL_Referee_Stage::EXTRA_FIRST_HALF),
+             Just(SSL_Referee_Stage::EXTRA_SECOND_HALF),
+    ]) -> SSL_Referee_Stage {
+        ref_stage
+    }
+}
+
+prop_compose! {
+    pub fn running_command_strategy()(ref_command in prop_oneof![
+        Just(SSL_Referee_Command::NORMAL_START),
+        Just(SSL_Referee_Command::FORCE_START),
+        Just(SSL_Referee_Command::DIRECT_FREE_YELLOW),
+        Just(SSL_Referee_Command::DIRECT_FREE_BLUE),
+        Just(SSL_Referee_Command::INDIRECT_FREE_YELLOW),
+        Just(SSL_Referee_Command::INDIRECT_FREE_BLUE),
+    ]) -> SSL_Referee_Command {
+        ref_command
+    }
+}
+
+prop_compose! {
+    pub fn not_running_command_strategy()(ref_command in prop_oneof![
+        Just(SSL_Referee_Command::HALT),
+        Just(SSL_Referee_Command::STOP),
+        Just(SSL_Referee_Command::PREPARE_KICKOFF_YELLOW),
+        Just(SSL_Referee_Command::PREPARE_KICKOFF_BLUE),
+        Just(SSL_Referee_Command::PREPARE_PENALTY_YELLOW),
+        Just(SSL_Referee_Command::PREPARE_PENALTY_BLUE),
+        Just(SSL_Referee_Command::TIMEOUT_YELLOW),
+        Just(SSL_Referee_Command::TIMEOUT_BLUE),
+        Just(SSL_Referee_Command::GOAL_YELLOW),
+        Just(SSL_Referee_Command::GOAL_BLUE),
+        Just(SSL_Referee_Command::BALL_PLACEMENT_YELLOW),
+        Just(SSL_Referee_Command::BALL_PLACEMENT_BLUE),
+    ]) -> SSL_Referee_Command {
+        ref_command
+    }
+}
+
+prop_compose! {
+    pub fn not_running_ref_stage_with_running_command_strategy()(
+        ref_stage in not_running_stage_strategy(),
+        ref_command in running_command_strategy()
+    ) -> (SSL_Referee_Stage, SSL_Referee_Command) {
+        (ref_stage, ref_command)
+    }
+}
+
+prop_compose! {
+    pub fn not_running_ref_stage_with_not_running_command_strategy()(
+        ref_stage in not_running_stage_strategy(),
+        ref_command in not_running_command_strategy()
+    ) -> (SSL_Referee_Stage, SSL_Referee_Command) {
+        (ref_stage, ref_command)
+    }
+}
+
+prop_compose! {
+    pub fn running_ref_stage_with_not_running_command_strategy()(
+        ref_stage in running_stage_strategy(),
+        ref_command in not_running_command_strategy()
+    ) -> (SSL_Referee_Stage, SSL_Referee_Command) {
+        (ref_stage, ref_command)
+    }
+}
+
+prop_compose! {
+    pub fn running_ref_msg()
+        (mut ref_msg in test_utils_message::random_refbox2013_msg_strategy(),
+         running_stage in running_stage_strategy(),
+         running_command in running_command_strategy()) -> message::Message {
+            match ref_msg.msg_type {
+                message::MessageType::Refbox2013(ref mut ref_msg) => {
+                    ref_msg.set_stage(running_stage);
+                    ref_msg.set_command(running_command);
+                },
+                _ => panic!("Strategy generated non Refbox2013 message type."),
+            };
+
+            ref_msg
+        }
+}
+
+prop_compose! {
+    pub fn not_running_ref_msg()
+        (mut ref_msg in test_utils_message::random_refbox2013_msg_strategy(),
+         stage_and_command in prop_oneof![
+             not_running_ref_stage_with_running_command_strategy(),
+             not_running_ref_stage_with_not_running_command_strategy(),
+             running_ref_stage_with_not_running_command_strategy(),
          ]) -> message::Message {
             match ref_msg.msg_type {
-                message::MessageType::Refbox2013(ref mut ref_msg) => ref_msg.set_stage(not_running_stage),
+                message::MessageType::Refbox2013(ref mut ref_msg) => {
+                    ref_msg.set_stage(stage_and_command.0);
+                    ref_msg.set_command(stage_and_command.1);
+                },
                 _ => panic!("Strategy generated non Refbox2013 message type."),
             };
 

@@ -1,7 +1,7 @@
 use super::*;
 use crate::persistence::message::{Message, MessageType};
 use crate::protos::log_labeler_data;
-use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
+use crate::protos::messages_robocup_ssl_referee::{SSL_Referee_Command, SSL_Referee_Stage};
 use byteorder::{BigEndian, WriteBytesExt};
 use protobuf;
 use protobuf::Message as ProtobufMessage;
@@ -41,6 +41,7 @@ pub struct LabelerDataWriter<T: Write + Seek> {
     message_offsets: Option<Vec<u64>>,
     // book-keeping for building up current LabelerData message
     curr_stage: Option<SSL_Referee_Stage>,
+    last_command: Option<SSL_Referee_Command>,
     // option allows taking the internal vector without copying
     curr_frames: Option<Vec<log_labeler_data::LabelerFrame>>,
     curr_cam_set: HashSet<u32>,
@@ -61,6 +62,7 @@ impl<T: Write + Seek> LabelerDataWriter<T> {
             num_cameras: 0,
             message_offsets: Some(Vec::<u64>::new()),
             curr_stage: None,
+            last_command: None,
             curr_frames: Some(Vec::new()),
             curr_cam_set: HashSet::new(),
         })
@@ -78,14 +80,16 @@ impl<T: Write + Seek> LabelerDataWriter<T> {
         match message.msg_type {
             MessageType::Refbox2013(ref_msg) => {
                 let new_stage = Some(ref_msg.get_stage());
-                if new_stage != self.curr_stage {
+                let new_command = Some(ref_msg.get_command());
+                if new_stage != self.curr_stage || new_command != self.last_command {
                     self.write_frame()?;
                 }
 
                 // update the current stage
-                self.curr_stage = Some(ref_msg.get_stage());
+                self.curr_stage = new_stage;
+                self.last_command = new_command;
 
-                if is_running_stage(self.curr_stage) {
+                if is_running_stage(self.curr_stage) && is_running_command(self.last_command) {
                     let mut frame = log_labeler_data::LabelerFrame::new();
                     frame.set_timestamp(message.timestamp as u64);
                     frame.set_referee_frame(ref_msg);
@@ -93,7 +97,7 @@ impl<T: Write + Seek> LabelerDataWriter<T> {
                 }
             }
             MessageType::Vision2014(vision_msg) => {
-                if is_running_stage(self.curr_stage) {
+                if is_running_stage(self.curr_stage) && is_running_command(self.last_command) {
                     let cam_id = vision_msg.get_detection().get_camera_id();
                     self.num_cameras = std::cmp::max(self.num_cameras, cam_id);
                     if self.curr_cam_set.contains(&cam_id) {
@@ -175,6 +179,21 @@ fn is_running_stage(stage: Option<SSL_Referee_Stage>) -> bool {
             | SSL_Referee_Stage::NORMAL_SECOND_HALF
             | SSL_Referee_Stage::EXTRA_FIRST_HALF
             | SSL_Referee_Stage::EXTRA_SECOND_HALF => true,
+            _ => false,
+        },
+        None => false,
+    }
+}
+
+fn is_running_command(command: Option<SSL_Referee_Command>) -> bool {
+    match command {
+        Some(command) => match command {
+            SSL_Referee_Command::NORMAL_START
+            | SSL_Referee_Command::FORCE_START
+            | SSL_Referee_Command::DIRECT_FREE_YELLOW
+            | SSL_Referee_Command::DIRECT_FREE_BLUE
+            | SSL_Referee_Command::INDIRECT_FREE_YELLOW
+            | SSL_Referee_Command::INDIRECT_FREE_BLUE => true,
             _ => false,
         },
         None => false,
