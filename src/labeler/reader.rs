@@ -405,7 +405,7 @@ mod tests {
             let metadata = write_msgs(&mut writer, &random_frame_group_msgs)?;
             drop(writer);
 
-            let mut reader = LabelerDataReader::new(Cursor::new(buffer.as_mut_slice()))?;
+            let reader = LabelerDataReader::new(Cursor::new(buffer.as_mut_slice()))?;
 
             prop_assert_eq!(reader.num_cameras(), metadata.get_num_cameras());
             prop_assert_eq!(reader.len(), metadata.get_message_offsets().len());
@@ -428,7 +428,7 @@ mod tests {
             let metadata = write_msgs(&mut writer, &random_frame_group_msgs)?;
             drop(writer);
 
-            let mut reader = LabelerDataReader::new(Cursor::new(buffer.as_mut_slice()))?;
+            let reader = LabelerDataReader::new(Cursor::new(buffer.as_mut_slice()))?;
 
             prop_assert_eq!(reader.num_cameras(), metadata.get_num_cameras());
             prop_assert_eq!(reader.len(), metadata.get_message_offsets().len());
