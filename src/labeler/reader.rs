@@ -1,10 +1,7 @@
 use super::*;
-use crate::persistence::message::{Message, MessageType};
 use crate::protos::log_labeler_data;
-use crate::protos::messages_robocup_ssl_referee::SSL_Referee_Stage;
 use byteorder::{BigEndian, ReadBytesExt};
 use protobuf;
-use protobuf::Message as ProtobufMessage;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io;
