@@ -3,6 +3,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use ssl_log_tools::labeler::writer;
 use ssl_log_tools::persistence::reader;
 use std::fs;
+use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 
 fn main() {
@@ -12,7 +13,7 @@ fn main() {
         .about("Pre-process a log file before labeling.")
         .arg(
             Arg::with_name("LOG_FILE")
-                .help("Path to the log file to pre-process.")
+                .help("Path to the log file to pre-process. Use '-' for stdin.")
                 .required(true)
                 .index(1),
         )
@@ -24,7 +25,39 @@ fn main() {
         )
         .get_matches();
 
-    let log_path = Path::new(matches.value_of("LOG_FILE").unwrap());
+    let (input, input_len): (Box<BufRead>, Option<u64>) =
+        match matches.value_of("LOG_FILE").unwrap() {
+            "-" => (Box::new(BufReader::new(io::stdin())), None),
+            log_path => {
+                let file = fs::File::open(log_path).expect("Failed to open input file");
+                let file_len = file
+                    .metadata()
+                    .expect("Failed to get input file metdata")
+                    .len();
+                (Box::new(BufReader::new(file)), Some(file_len))
+            }
+        };
+
+    let prog_bar = match input_len {
+        Some(len) => {
+            let prog_bar = ProgressBar::new(len);
+            prog_bar.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} {msg} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({elapsed_precise}/{eta_precise})")
+                      );
+            prog_bar
+        }
+        None => {
+            let prog_bar = ProgressBar::new_spinner();
+            prog_bar.set_style(
+                ProgressStyle::default_bar()
+                    .template("{spinner:.green} {msg} {bytes} {elapsed_precise}"),
+            );
+            prog_bar
+        }
+    };
+    let reader = prog_bar.wrap_read(input);
+
     let output_path = Path::new(matches.value_of("LABELER_DATA_FILE").unwrap());
 
     let output_path_parent = output_path
@@ -32,15 +65,7 @@ fn main() {
         .expect("Unable to get parent directory of output path");
     fs::create_dir_all(output_path_parent).expect("Failed to create output directory");
 
-    let file = fs::File::open(log_path).expect("Failed to open log file");
-    let prog_bar = ProgressBar::new(file.metadata().expect("Failed to get file metadata").len());
-    prog_bar.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} {msg} [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({elapsed_precise}/{eta_precise})")
-    );
-    let file = prog_bar.wrap_read(file);
-
-    let log_reader = reader::LogReader::new(file).expect("Could not read log file");
+    let log_reader = reader::LogReader::new(reader).expect("Could not read log file");
     let mut labeler_data_writer = writer::LabelerDataWriter::new_from_path(output_path)
         .expect("Could not write labeler data file");
 
