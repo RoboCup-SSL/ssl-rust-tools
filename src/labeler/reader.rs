@@ -87,6 +87,10 @@ impl<T: Read + Seek> LabelerDataReader<T> {
         self.metadata.get_message_offsets().len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.metadata.get_message_offsets().is_empty()
+    }
+
     pub fn num_cameras(&self) -> u32 {
         self.metadata.get_num_cameras()
     }
@@ -503,6 +507,7 @@ mod tests {
 
             prop_assert_eq!(reader.num_cameras(), metadata.get_num_cameras());
             prop_assert_eq!(reader.len(), metadata.get_message_offsets().len());
+            prop_assert!(!reader.is_empty());
 
             for (read_frame_msg, frame_msg) in (&reader).into_iter().zip(&random_frame_group_msgs) {
                 prop_assert_eq!(read_frame_msg, frame_msg.clone());
@@ -511,8 +516,8 @@ mod tests {
             // should be able to compile without move errors
             for (read_frame_msg, frame_msg) in (&reader).into_iter().zip(&random_frame_group_msgs) {
                 prop_assert_eq!(read_frame_msg, frame_msg.clone());
-            }            
-        }        
+            }
+        }
 
     }
 
@@ -528,6 +533,7 @@ mod tests {
         let reader = LabelerDataReader::new(reader).unwrap();
 
         assert_eq!(reader.len(), 0);
+        assert!(reader.is_empty());
         assert_eq!(reader.num_cameras(), 0);
     }
 
@@ -541,6 +547,7 @@ mod tests {
         let reader = LabelerDataReader::new_from_path(tmpfile.path()).unwrap();
 
         assert_eq!(reader.len(), 0);
+        assert!(reader.is_empty());
         assert_eq!(reader.num_cameras(), 0);
     }
 
