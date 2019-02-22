@@ -2,8 +2,12 @@ use imgui::{FontGlyphRange, ImFontConfig, ImGui, ImVec4, Ui};
 use imgui_gfx_renderer::{Renderer, Shaders};
 use imgui_winit_support;
 use std::time::Instant;
+use imgui_sys;
 
 mod styles;
+
+const ICON_MIN_FA: imgui_sys::ImWchar = 0xf000;
+const ICON_MAX_FA: imgui_sys::ImWchar = 0xf2e2;
 
 pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_ui: F) {
     use gfx::{self, Device};
@@ -86,6 +90,17 @@ pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_
             .size_pixels(font_size)
             .rasterizer_multiply(1.75),
         &FontGlyphRange::japanese(),
+    );
+
+    imgui.fonts().add_font_with_config(
+        include_bytes!("../../../resources/fa-solid-900.ttf"),
+        ImFontConfig::new()
+            .merge_mode(true)
+            .oversample_h(1)
+            .pixel_snap_h(true)
+            .size_pixels(font_size)
+            .rasterizer_multiply(1.75),
+        &FontGlyphRange::from_slice(&[ICON_MIN_FA, ICON_MAX_FA, 0]),
     );
 
     imgui.set_font_global_scale((1.0 / hidpi_factor) as f32);

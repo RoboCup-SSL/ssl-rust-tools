@@ -6,6 +6,10 @@ mod support;
 
 const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
+// icon font codes
+const FA_SAVE: &str = "\u{f0c7}";
+
+
 trait SeekableReader: Read + Seek {}
 impl<T: Read + Seek> SeekableReader for T {}
 
@@ -43,7 +47,7 @@ fn main_window<'a, T: Read + Seek>(ui: &Ui<'a>, player_widget: &mut PlayerWidget
                     ui.menu_item(im_str!("Open"))
                         .shortcut(im_str!("Ctrl+o"))
                         .build();
-                    ui.menu_item(im_str!("Save"))
+                    ui.menu_item(im_str!("{} Save", FA_SAVE))
                         .shortcut(im_str!("Ctrl+s"))
                         .enabled(false)
                         .build();
