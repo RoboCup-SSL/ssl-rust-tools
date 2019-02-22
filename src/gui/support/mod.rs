@@ -1,41 +1,63 @@
-use glium::{
-    backend::{Context, Facade},
-    Texture2d,
-};
-use imgui::{FontGlyphRange, ImFontConfig, ImGui, Ui};
+use imgui::{FontGlyphRange, ImFontConfig, ImGui, ImVec4, Ui};
+use imgui_gfx_renderer::{Renderer, Shaders};
 use imgui_winit_support;
-use std::rc::Rc;
 use std::time::Instant;
 
-pub mod styles;
+pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_ui: F) {
+    use gfx::{self, Device};
+    use gfx_window_glutin;
+    use glutin;
 
-pub type Textures = imgui::Textures<Texture2d>;
-
-pub fn run<F>(title: String, clear_color: [f32; 4], mut run_ui: F)
-where
-    F: FnMut(&Ui, &Rc<Context>, &mut Textures) -> bool,
-{
-    use glium::glutin;
-    use glium::{Display, Surface};
-    use imgui_glium_renderer::Renderer;
+    type ColorFormat = gfx::format::Rgba8;
+    type DepthFormat = gfx::format::DepthStencil;
 
     let mut events_loop = glutin::EventsLoop::new();
     let context = glutin::ContextBuilder::new().with_vsync(true);
-    let builder = glutin::WindowBuilder::new()
+    let window = glutin::WindowBuilder::new()
         .with_title(title)
         .with_dimensions(glutin::dpi::LogicalSize::new(1024f64, 768f64));
-    let display = Display::new(builder, context, &events_loop).unwrap();
-    let window = display.gl_window();
+    let (window, mut device, mut factory, mut main_color, mut main_depth) =
+        gfx_window_glutin::init::<ColorFormat, DepthFormat>(window, context, &events_loop)
+            .expect("Failed to initalize graphics");
+    let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
+    let shaders = {
+        let version = device.get_info().shading_language;
+        if version.is_embedded {
+            if version.major >= 3 {
+                Shaders::GlSlEs300
+            } else {
+                Shaders::GlSlEs100
+            }
+        } else if version.major >= 4 {
+            Shaders::GlSl400
+        } else if version.major >= 3 {
+            if version.minor >= 2 {
+                Shaders::GlSl150
+            } else {
+                Shaders::GlSl130
+            }
+        } else {
+            Shaders::GlSl110
+        }
+    };
 
     let mut imgui = ImGui::init();
+    {
+        // Fix incorrect colors with sRGB framebuffer
+        fn imgui_gamma_to_linear(col: ImVec4) -> ImVec4 {
+            let x = col.x.powf(2.2);
+            let y = col.y.powf(2.2);
+            let z = col.z.powf(2.2);
+            let w = 1.0 - (1.0 - col.w).powf(2.2);
+            ImVec4::new(x, y, z, w)
+        }
+
+        let style = imgui.style_mut();
+        for col in 0..style.colors.len() {
+            style.colors[col] = imgui_gamma_to_linear(style.colors[col]);
+        }
+    }
     imgui.set_ini_filename(None);
-
-    // disable window corner rounding
-    imgui.style_mut().window_rounding = 0.0;
-
-    // set the color theme
-    // styles::use_darcula(imgui.style_mut());
-    styles::use_light(imgui.style_mut());
 
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.
@@ -51,7 +73,7 @@ where
     );
 
     imgui.fonts().add_font_with_config(
-        include_bytes!("../../../resources/Roboto-Regular.ttf"),
+        include_bytes!("../../../resources/mplus-1p-regular.ttf"),
         ImFontConfig::new()
             .merge_mode(true)
             .oversample_h(1)
@@ -63,7 +85,8 @@ where
 
     imgui.set_font_global_scale((1.0 / hidpi_factor) as f32);
 
-    let mut renderer = Renderer::init(&mut imgui, &display).expect("Failed to initialize renderer");
+    let mut renderer = Renderer::init(&mut imgui, &mut factory, shaders, main_color.clone())
+        .expect("Failed to initialize renderer");
 
     imgui_winit_support::configure_keys(&mut imgui);
 
@@ -72,7 +95,10 @@ where
 
     loop {
         events_loop.poll_events(|event| {
-            use glium::glutin::{Event, WindowEvent::CloseRequested};
+            use glutin::{
+                Event,
+                WindowEvent::{CloseRequested, Resized},
+            };
 
             imgui_winit_support::handle_event(
                 &mut imgui,
@@ -83,11 +109,18 @@ where
 
             if let Event::WindowEvent { event, .. } = event {
                 match event {
+                    Resized(_) => {
+                        gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
+                        renderer.update_render_target(main_color.clone());
+                    }
                     CloseRequested => quit = true,
                     _ => (),
                 }
             }
         });
+        if quit {
+            break;
+        }
 
         let now = Instant::now();
         let delta = now - last_frame;
@@ -99,22 +132,16 @@ where
         let frame_size = imgui_winit_support::get_frame_size(&window, hidpi_factor).unwrap();
 
         let ui = imgui.frame(frame_size, delta_s);
-        if !run_ui(&ui, display.get_context(), renderer.textures()) {
+        if !run_ui(&ui) {
             break;
         }
 
-        let mut target = display.draw();
-        target.clear_color(
-            clear_color[0],
-            clear_color[1],
-            clear_color[2],
-            clear_color[3],
-        );
-        renderer.render(&mut target, ui).expect("Rendering failed");
-        target.finish().unwrap();
-
-        if quit {
-            break;
-        }
+        encoder.clear(&main_color, clear_color);
+        renderer
+            .render(ui, &mut factory, &mut encoder)
+            .expect("Rendering failed");
+        encoder.flush(&mut device);
+        window.swap_buffers().unwrap();
+        device.cleanup();
     }
 }

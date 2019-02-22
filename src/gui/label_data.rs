@@ -14,7 +14,7 @@ type BoxedSeekableReader = Box<SeekableReader>;
 fn main() {
     let mut player_widget: PlayerWidget<BoxedSeekableReader> = PlayerWidget::new(None);
 
-    support::run("SSL Data Labeler".to_owned(), CLEAR_COLOR, |ui, _, _| {
+    support::run("SSL Data Labeler".to_owned(), CLEAR_COLOR, |ui| {
         main_window(ui, &mut player_widget)
     });
 }

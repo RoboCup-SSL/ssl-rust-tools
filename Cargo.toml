@@ -20,9 +20,11 @@ socket2 = { version = "0.3", features = ["reuseport"] }
 protobuf = { version = "2.3" }
 
 # gui deps
-glium = { version = "0.23", optional = true }
+gfx = { version = "0.17", optional = true }
+gfx_window_glutin = { version = "0.28", optional = true }
+glutin = { version = "0.19", optional = true }
 imgui = { version = "0.0.22", optional = true }
-imgui-glium-renderer = { version = "0.0.22", optional = true }
+imgui-gfx-renderer = { version = "0.0.22", optional = true }
 imgui-winit-support = { version = "0.0.22", optional = true }
 
 [dev-dependencies]
@@ -32,7 +34,7 @@ tempfile = "3"
 
 [features]
 default = []
-gui = ["glium", "imgui", "imgui-glium-renderer", "imgui-winit-support"]
+gui = ["gfx", "gfx_window_glutin", "glutin", "imgui", "imgui-gfx-renderer", "imgui-winit-support"]
 
 [[bin]]
 name = "label_data"
