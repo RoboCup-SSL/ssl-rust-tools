@@ -19,7 +19,18 @@ lazy_static = "1.2"
 socket2 = { version = "0.3", features = ["reuseport"] }
 protobuf = { version = "2.3" }
 
+# gui deps
+glium = { version = "0.23", optional = true }
+imgui = { version = "0.0.22", optional = true }
+imgui-glium-renderer = { version = "0.0.22", optional = true }
+imgui-winit-support = { version = "0.0.22", optional = true }
+
 [dev-dependencies]
 # Test deps
 proptest = "0.9"
 tempfile = "3"
+
+[features]
+default = []
+gui = ["glium", "imgui", "imgui-glium-renderer", "imgui-winit-support"]
+
