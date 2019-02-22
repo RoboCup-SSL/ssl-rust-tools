@@ -28,6 +28,9 @@ where
     let mut imgui = ImGui::init();
     imgui.set_ini_filename(None);
 
+    // disable window corner rounding
+    imgui.style_mut().window_rounding = 0.0;
+
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.
     let hidpi_factor = window.get_hidpi_factor().round();
