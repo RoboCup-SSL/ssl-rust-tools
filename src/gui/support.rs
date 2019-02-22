@@ -42,7 +42,7 @@ where
     );
 
     imgui.fonts().add_font_with_config(
-        include_bytes!("../../resources/mplus-1p-regular.ttf"),
+        include_bytes!("../../resources/Roboto-Regular.ttf"),
         ImFontConfig::new()
             .merge_mode(true)
             .oversample_h(1)
