@@ -3,6 +3,8 @@ use imgui_gfx_renderer::{Renderer, Shaders};
 use imgui_winit_support;
 use std::time::Instant;
 
+mod styles;
+
 pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_ui: F) {
     use gfx::{self, Device};
     use gfx_window_glutin;
@@ -59,6 +61,9 @@ pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_
     }
     imgui.set_ini_filename(None);
 
+    imgui.style_mut().window_rounding = 0.0;
+    styles::use_dark(imgui.style_mut());
+
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.
     let hidpi_factor = window.get_hidpi_factor().round();
@@ -73,7 +78,7 @@ pub fn run<F: FnMut(&Ui) -> bool>(title: String, clear_color: [f32; 4], mut run_
     );
 
     imgui.fonts().add_font_with_config(
-        include_bytes!("../../../resources/mplus-1p-regular.ttf"),
+        include_bytes!("../../../resources/Roboto-Regular.ttf"),
         ImFontConfig::new()
             .merge_mode(true)
             .oversample_h(1)
