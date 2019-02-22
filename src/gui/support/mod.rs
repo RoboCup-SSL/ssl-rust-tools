@@ -7,6 +7,8 @@ use imgui_winit_support;
 use std::rc::Rc;
 use std::time::Instant;
 
+pub mod styles;
+
 pub type Textures = imgui::Textures<Texture2d>;
 
 pub fn run<F>(title: String, clear_color: [f32; 4], mut run_ui: F)
@@ -31,6 +33,10 @@ where
     // disable window corner rounding
     imgui.style_mut().window_rounding = 0.0;
 
+    // set the color theme
+    // styles::use_darcula(imgui.style_mut());
+    styles::use_light(imgui.style_mut());
+
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.
     let hidpi_factor = window.get_hidpi_factor().round();
@@ -45,7 +51,7 @@ where
     );
 
     imgui.fonts().add_font_with_config(
-        include_bytes!("../../resources/Roboto-Regular.ttf"),
+        include_bytes!("../../../resources/Roboto-Regular.ttf"),
         ImFontConfig::new()
             .merge_mode(true)
             .oversample_h(1)
