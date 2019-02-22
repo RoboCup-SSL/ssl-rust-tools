@@ -34,3 +34,7 @@ tempfile = "3"
 default = []
 gui = ["glium", "imgui", "imgui-glium-renderer", "imgui-winit-support"]
 
+[[bin]]
+name = "label_data"
+path = "src/gui/label_data.rs"
+required-features = ["gui"]
