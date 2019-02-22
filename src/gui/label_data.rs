@@ -4,26 +4,35 @@ mod support;
 const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 fn main() {
-    support::run("hello_world.rs".to_owned(), CLEAR_COLOR, |ui, _, _| {
-        hello_world(ui)
+    support::run("SSL Data Labeler".to_owned(), CLEAR_COLOR, |ui, _, _| {
+        main_window(ui)
     });
 }
 
-fn hello_world<'a>(ui: &Ui<'a>) -> bool {
-    ui.window(im_str!("Hello world"))
-        .size((300.0, 100.0), ImGuiCond::FirstUseEver)
-        .build(|| {
-            ui.text(im_str!("Hello world!"));
-            ui.text(im_str!("こんにちは世界！"));
-            ui.text(im_str!("This...is...imgui-rs!"));
-            ui.separator();
-            let mouse_pos = ui.imgui().mouse_pos();
-            ui.text(im_str!(
-                "Mouse Position: ({:.1},{:.1})",
-                mouse_pos.0,
-                mouse_pos.1
-            ));
-        });
+fn main_window<'a>(ui: &Ui<'a>) -> bool {
+    let window_size = {
+        let frame_size = ui.frame_size();
+        (
+            frame_size.logical_size.0 as f32,
+            frame_size.logical_size.1 as f32,
+        )
+    };
+
+    let styles = [StyleVar::WindowRounding(0.0)];
+    ui.with_style_vars(&styles, || {
+        ui.window(im_str!("SSL Data Labeler"))
+            .title_bar(false)
+            .resizable(false)
+            .movable(false)
+            .scrollable(true)
+            .size(window_size, ImGuiCond::Always)
+            .collapsible(false)
+            .menu_bar(true)
+            .position((0.0, 0.0), ImGuiCond::Always)
+            .build(|| {
+                ui.text("Hello world!");
+            });
+    });
 
     true
 }
