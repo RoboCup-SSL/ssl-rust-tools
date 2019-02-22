@@ -3,6 +3,6 @@ const LABELER_DATA_HEADER: [u8; 16] = [
 ];
 const LABELER_DATA_VERSION: u32 = 1u32;
 
+pub mod player;
 pub mod reader;
 pub mod writer;
-
