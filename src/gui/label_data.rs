@@ -11,6 +11,11 @@ const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 // icon font codes
 const FA_SAVE: &str = "\u{f0c7}";
+const FA_REWIND: &str = "\u{f04a}";
+const FA_STEP_BACK: &str = "\u{f048}";
+const FA_PAUSE: &str = "\u{f04c}";
+const FA_STEP_FORWARD: &str = "\u{f051}";
+const FA_FAST_FORWARD: &str = "\u{f04e}";
 
 trait SeekableReader: Read + Seek {}
 impl<T: Read + Seek> SeekableReader for T {}
@@ -141,9 +146,17 @@ impl Default for FileMenu {
     }
 }
 
+enum PlayerWidgetState {
+    Paused,
+    Forward,
+    Backward,
+}
+
 struct PlayerWidget<T: SeekableReader> {
     player: Option<LabelerPlayer<T>>,
     frame_index: i32,
+    playback_speed: f32,
+    widget_state: PlayerWidgetState,
 }
 
 impl<T> PlayerWidget<T>
@@ -154,6 +167,8 @@ where
         PlayerWidget {
             player,
             frame_index: 0,
+            playback_speed: 1.0,
+            widget_state: PlayerWidgetState::Paused,
         }
     }
 
@@ -162,6 +177,9 @@ where
     }
 
     fn set_player(&mut self, player: LabelerPlayer<T>) -> &mut Self {
+        // set the first frame playing
+        player.play_frame(0);
+
         self.player = Some(player);
         self.frame_index = 0;
 
@@ -171,6 +189,11 @@ where
     fn build<'a>(&mut self, ui: &Ui<'a>) -> bool {
         match &self.player {
             Some(player) => {
+                ui.input_float(im_str!("Playback Speed"), &mut self.playback_speed)
+                    .build();
+                ui.slider_float(im_str!(""), &mut self.playback_speed, 0.0, 10.0)
+                    .build();
+
                 if ui
                     .slider_int(
                         im_str!("Frame"),
@@ -180,8 +203,18 @@ where
                     )
                     .build()
                 {
-                    println!("Value changed to: {}", self.frame_index);
+                    player.play_frame(self.frame_index as usize);
                 }
+
+                ui.button(im_str!("{}", FA_REWIND), (0.0, 0.0));
+                ui.same_line(100.0);
+                ui.button(im_str!("{}", FA_STEP_BACK), (0.0, 0.0));
+                ui.same_line(200.0);
+                ui.button(im_str!("{}", FA_PAUSE), (0.0, 0.0));
+                ui.same_line(300.0);
+                ui.button(im_str!("{}", FA_STEP_FORWARD), (0.0, 0.0));
+                ui.same_line(400.0);
+                ui.button(im_str!("{}", FA_FAST_FORWARD), (0.0, 0.0));
             }
             None => {
                 // TODO(dschwab): Show disabled widget
