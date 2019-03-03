@@ -176,6 +176,7 @@ impl FileBrowser {
 
         ui.text(im_str!("{}", self.curr_dir.to_str().unwrap_or("ERROR")));
 
+        let mut double_clicked = false;
         ui.child_frame(im_str!("Frame name"), child_frame_size)
             .show_borders(true)
             .build(|| {
@@ -214,10 +215,14 @@ impl FileBrowser {
                     if ui.selectable(
                         im_str!("{}", leaf),
                         selected,
-                        ImGuiSelectableFlags::empty(),
+                        ImGuiSelectableFlags::AllowDoubleClick,
                         column_size,
                     ) {
                         self.curr_selection = Selection::Directory(i);
+                        if ui.imgui().is_mouse_double_clicked(ImMouseButton::Left) {
+                            double_clicked = true;
+                            return;
+                        }
                     }
                     ui.next_column();
                 }
@@ -253,10 +258,14 @@ impl FileBrowser {
                     if ui.selectable(
                         im_str!("{}", leaf),
                         selected,
-                        ImGuiSelectableFlags::empty(),
+                        ImGuiSelectableFlags::AllowDoubleClick,
                         column_size,
                     ) {
                         self.curr_selection = Selection::File(i);
+                        if ui.imgui().is_mouse_double_clicked(ImMouseButton::Left) {
+                            double_clicked = true;
+                            return;
+                        }
                     }
                     ui.next_column();
                 }
@@ -275,7 +284,7 @@ impl FileBrowser {
         let select_text = im_str!("Select");
         let select_text_size = ui.calc_text_size(select_text, false, parent_frame_size.0);
 
-        if ui.button(im_str!("Select"), (0.0, 0.0)) {
+        if double_clicked || ui.button(im_str!("Select"), (0.0, 0.0)) {
             match self.curr_selection {
                 Selection::None => {}
                 _ => return Some(DialogResponse::Select),

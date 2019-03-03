@@ -54,11 +54,22 @@ fn main_window<'ui>(ui: &Ui<'ui>, state: &mut State) -> bool {
             if ui.button(im_str!("Select file"), (0.0, 0.0)) {
                 ui.open_popup(im_str!("Select file"));
             }
-            ui.popup_modal(im_str!("Select file")).build(|| {
-                match state.file_browser.build(ui) {
+            ui.popup_modal(im_str!("Select file"))
+                .build(|| match state.file_browser.build(ui) {
                     Some(response) => match response {
-                };
-            });
+                        widgets::FileDialogResponse::Select => {
+                            let curr_selection = state.file_browser.current_selection().unwrap();
+                            if curr_selection.is_dir() {
+                                state.file_browser.change_curr_dir(curr_selection);
+                            } else {
+                                state.selected_file = Some(curr_selection);
+                                ui.close_current_popup();
+                            }
+                        }
+                        _ => ui.close_current_popup(),
+                    },
+                    _ => {}
+                });
         });
 
     true
