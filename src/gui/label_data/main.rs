@@ -4,8 +4,7 @@ use ssl_log_tools::labeler::reader::LabelerDataReader;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-
-mod support;
+use ssl_log_tools::gui::support;
 
 const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 

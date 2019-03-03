@@ -39,5 +39,5 @@ gui = ["gfx", "gfx_window_glutin", "glutin", "imgui", "imgui-sys", "imgui-gfx-re
 
 [[bin]]
 name = "label_data"
-path = "src/gui/label_data.rs"
+path = "src/gui/label_data/main.rs"
 required-features = ["gui"]
