@@ -57,21 +57,6 @@ fn main_window<'ui>(ui: &Ui<'ui>, state: &mut State) -> bool {
             ui.popup_modal(im_str!("Select file")).build(|| {
                 match state.file_browser.build(ui) {
                     Some(response) => match response {
-                        widgets::FileDialogResponse::Select => {
-                            let path = state.file_browser.current_selection().unwrap();
-                            if path.is_dir() {
-                                state.file_browser.change_curr_dir(&path);
-                            } else {
-                                state.selected_file = Some(path);
-                                ui.close_current_popup();
-                            }
-                        }
-                        _ => {
-                            state.selected_file = None;
-                            ui.close_current_popup();
-                        }
-                    },
-                    None => {}
                 };
             });
         });

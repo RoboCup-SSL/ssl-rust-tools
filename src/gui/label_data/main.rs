@@ -1,10 +1,10 @@
 use imgui::*;
+use ssl_log_tools::gui::{support, widgets};
 use ssl_log_tools::labeler::player::Player as LabelerPlayer;
 use ssl_log_tools::labeler::reader::LabelerDataReader;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
-use ssl_log_tools::gui::support;
 
 const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
@@ -79,7 +79,9 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                         state.file_menu.show_save_as_modal = true;
                     }
                     ui.separator();
-                    ui.menu_item(im_str!("Exit")).build();
+                    if ui.menu_item(im_str!("Exit")).build() {
+                        state.file_menu.should_exit = true;
+                    }
                 });
             });
             state.player_widget.build(ui);
@@ -88,33 +90,35 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                 ui.open_popup(im_str!("Open Labeler Data File"));
                 state.file_menu.show_open_modal = false;
             }
-            ui.popup(im_str!("Open Labeler Data File"), || {
-                ui.text(im_str!(
-                    "Current Working Dir: {:?}",
-                    env::current_dir().unwrap()
-                ));
-                ui.input_text(
-                    im_str!("File Path"),
-                    &mut state.file_menu.label_data_file_path,
-                )
-                .build();
-                if ui.button(im_str!("Open"), (0.0, 0.0)) {
-                    let mut file_path = env::current_dir().unwrap();
-                    file_path.push(state.file_menu.label_data_file_path.to_str());
-                    let file_path = file_path.canonicalize().unwrap();
+            ui.popup_modal(im_str!("Open Labeler Data File")).build(|| {
+                match state.file_menu.open_file_browser.build(ui) {
+                    Some(response) => match response {
+                        widgets::FileDialogResponse::Select => {
+                            let path = state
+                                .file_menu
+                                .open_file_browser
+                                .current_selection()
+                                .unwrap();
+                            if path.is_dir() {
+                                state.file_menu.open_file_browser.change_curr_dir(&path);
+                            } else {
+                                // open the player on the selected file
+                                let reader: BoxedSeekableReader =
+                                    Box::new(File::open(&path).unwrap());
+                                let reader = LabelerDataReader::new(reader).unwrap();
+                                let player = LabelerPlayer::new(reader);
+                                state.player_widget.set_player(player);
 
-                    let reader: BoxedSeekableReader = Box::new(File::open(&file_path).unwrap());
-                    let reader = LabelerDataReader::new(reader).unwrap();
-                    let player = LabelerPlayer::new(reader);
-                    state.player_widget.set_player(player);
-
-                    ui.close_current_popup();
-                }
-                if ui.button(im_str!("Cancel"), (0.0, 0.0)) {
-                    ui.close_current_popup();
-                }
+                                ui.close_current_popup();
+                            }
+                        }
+                        _ => {
+                            ui.close_current_popup();
+                        }
+                    },
+                    None => {}
+                };
             });
-
             if state.file_menu.show_save_as_modal {
                 ui.open_popup(im_str!("Save Labels"));
             }
@@ -126,21 +130,34 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
             });
         });
 
-    true
+    !state.file_menu.should_exit
 }
 
 struct FileMenu {
+    // open
     show_open_modal: bool,
+    open_file_browser: widgets::FileBrowser,
+    // save
     show_save_as_modal: bool,
-    label_data_file_path: ImString,
+    // exit
+    should_exit: bool,
 }
 
 impl Default for FileMenu {
     fn default() -> Self {
+        let filter_lists = vec![
+            widgets::FileBrowserFilter::new("labeler", ".*\\.labeler").unwrap(),
+            widgets::FileBrowserFilter::new("all", ".*").unwrap(),
+        ];
+
         FileMenu {
+            // open
             show_open_modal: false,
+            open_file_browser: widgets::FileBrowser::new(None, Some(filter_lists)).unwrap(),
+            // save
             show_save_as_modal: false,
-            label_data_file_path: ImString::with_capacity(1024),
+            // exit
+            should_exit: false,
         }
     }
 }
