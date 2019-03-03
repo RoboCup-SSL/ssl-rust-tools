@@ -27,6 +27,8 @@ imgui = { version = "0.0.22", optional = true }
 imgui-sys = { version = "0.0.22", optional = true }
 imgui-gfx-renderer = { version = "0.0.22", optional = true }
 imgui-winit-support = { version = "0.0.22", optional = true }
+# used in file browser widget
+regex = { version = "1.1", optional = true }
 
 [dev-dependencies]
 # Test deps
@@ -35,7 +37,7 @@ tempfile = "3"
 
 [features]
 default = []
-gui = ["gfx", "gfx_window_glutin", "glutin", "imgui", "imgui-sys", "imgui-gfx-renderer", "imgui-winit-support"]
+gui = ["gfx", "gfx_window_glutin", "glutin", "imgui", "imgui-sys", "imgui-gfx-renderer", "imgui-winit-support", "regex"]
 
 [[bin]]
 name = "label_data"
