@@ -6,9 +6,9 @@ pub struct TabBar {
 }
 
 impl TabBar {
-    pub fn new(tab_text: Vec<String>) -> TabBar {
+    pub fn new<T: Into<String>>(tab_text: Vec<T>) -> TabBar {
         TabBar {
-            tab_text,
+            tab_text: tab_text.into_iter().map(|x| x.into()).collect(),
             curr_tab: 0,
         }
     }
@@ -44,7 +44,7 @@ impl TabBar {
         }
 
         // move cursor to below tab bar
-        let label_size = ui.calc_text_size(im_str!("f"), true, 100.0);
+        let label_size = ui.calc_text_size(im_str!("f"), true, 1000.0);
         let style = ui.imgui().style();
         let new_pos = (
             start_pos.0,
@@ -56,8 +56,9 @@ impl TabBar {
     }
 
     fn tab_button<'ui>(ui: &'ui Ui, label: &ImStr) -> bool {
+        let frame_size = ui.frame_size();        
         let style = ui.imgui().style();
-        let label_size = ui.calc_text_size(label, true, 100.0);
+        let label_size = ui.calc_text_size(label, true, frame_size.logical_size.0 as f32);
 
         let button_pos = ui.get_cursor_screen_pos();
         let button_size = (
