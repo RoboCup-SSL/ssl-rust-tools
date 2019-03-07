@@ -51,6 +51,7 @@ impl TabBar {
             start_pos.1 + label_size.y + 6.0 * style.frame_padding.y,
         );
         ui.set_cursor_screen_pos(new_pos);
+        ui.separator();
 
         self.curr_tab
     }
