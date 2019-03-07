@@ -15,6 +15,7 @@ const FA_SAVE: &str = "\u{f0c7}";
 struct State {
     file_menu: FileMenu,
     player_widget: Option<widgets::LabelDataPlayer>,
+    tabs: widgets::TabBar,
 }
 
 impl State {
@@ -22,6 +23,12 @@ impl State {
         State {
             file_menu: Default::default(),
             player_widget: None,
+            tabs: widgets::TabBar::new(vec![
+                "Dribbling",
+                "Ball Possession",
+                "Passing",
+                "Goal Shots",
+            ]),
         }
     }
 }
@@ -75,8 +82,19 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
             });
 
             match state.player_widget {
-                Some(ref mut player_widget) => player_widget.build(ui),
-                None => {}
+                Some(ref mut player_widget) => {
+                    player_widget.build(ui);
+                    match state.tabs.build(ui) {
+                        0 => dribbling_tab(ui, state),
+                        1 => ball_possession_tab(ui, state),
+                        2 => passing_tab(ui, state),
+                        3 => goal_shot_tab(ui, state),
+                        _ => panic!("Unhandled tab"),
+                    }
+                }
+                None => {
+                    ui.text("Open a labeler data file to begin");
+                }
             };
 
             if state.file_menu.show_open_data_file_modal {
@@ -196,4 +214,20 @@ impl Default for FileMenu {
             should_exit: false,
         }
     }
+}
+
+fn dribbling_tab<'a>(ui: &Ui<'a>, state: &mut State) {
+    ui.text("dribbling tab");
+}
+
+fn ball_possession_tab<'a>(ui: &Ui<'a>, state: &mut State) {
+    ui.text("ball possession tab");
+}
+
+fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
+    ui.text("passing tab");
+}
+
+fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {
+    ui.text("goal shot tab");
 }
