@@ -76,6 +76,14 @@ impl LabelDataPlayer {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.num_frames
+    }
+
+    pub fn curr_frame(&self) -> usize {
+        self.latest_thread_state.curr_frame
+    }
+
     pub fn build<'ui>(&mut self, ui: &Ui<'ui>) {
         ui.text("Playback Speed");
         let playback_speed_input_changed = ui
