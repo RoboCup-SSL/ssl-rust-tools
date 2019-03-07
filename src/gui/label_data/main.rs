@@ -1,5 +1,7 @@
 use imgui::*;
+use protobuf::ProtobufEnum;
 use ssl_log_tools::gui::{support, widgets};
+use ssl_log_tools::protos;
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -16,6 +18,8 @@ struct State {
     file_menu: FileMenu,
     player_widget: Option<widgets::LabelDataPlayer>,
     tabs: widgets::TabBar,
+    dribbling_labels: Vec<protos::log_labels::DribblingLabel>,
+    ball_possession_labels: Vec<protos::log_labels::BallPossessionLabel>,
 }
 
 impl State {
@@ -29,6 +33,8 @@ impl State {
                 "Passing",
                 "Goal Shots",
             ]),
+            dribbling_labels: vec![],
+            ball_possession_labels: vec![],
         }
     }
 }
@@ -65,7 +71,11 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                     if ui.menu_item(im_str!("Open data file")).build() {
                         state.file_menu.show_open_data_file_modal = true;
                     }
-                    if ui.menu_item(im_str!("Open label file")).build() {
+                    if ui
+                        .menu_item(im_str!("Open label file"))
+                        .enabled(false)
+                        .build()
+                    {
                         state.file_menu.show_open_label_file_modal = true;
                     }
                     ui.menu_item(im_str!("{} Save", FA_SAVE))
@@ -120,7 +130,23 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                                 let reader: Box<SeekReadSend> =
                                     Box::new(File::open(&path).unwrap());
 
-                                state.player_widget = Some(widgets::LabelDataPlayer::new(reader));
+                                let player_widget = widgets::LabelDataPlayer::new(reader);
+                                // allocate the label messages
+                                state.dribbling_labels = Vec::with_capacity(player_widget.len());
+                                for _ in 0..player_widget.len() {
+                                    state
+                                        .dribbling_labels
+                                        .push(protos::log_labels::DribblingLabel::new());
+                                }
+                                state.ball_possession_labels =
+                                    Vec::with_capacity(player_widget.len());
+                                for _ in 0..player_widget.len() {
+                                    state
+                                        .ball_possession_labels
+                                        .push(protos::log_labels::BallPossessionLabel::new());
+                                }
+
+                                state.player_widget = Some(player_widget);
 
                                 ui.close_current_popup();
                             }
@@ -217,7 +243,36 @@ impl Default for FileMenu {
 }
 
 fn dribbling_tab<'a>(ui: &Ui<'a>, state: &mut State) {
-    ui.text("dribbling tab");
+    let player_widget = state.player_widget.as_ref().unwrap();
+    let curr_frame = player_widget.curr_frame();
+
+    let dribbling_label = &mut state.dribbling_labels[curr_frame];
+
+    let mut is_dribbling = dribbling_label.get_is_dribbling();
+    if ui.checkbox(im_str!("Is Dribbling?"), &mut is_dribbling) {
+        dribbling_label.set_is_dribbling(is_dribbling);
+    }
+
+    if is_dribbling {
+        let mut robot_id = dribbling_label.get_robot_id() as i32;
+        if ui.input_int(im_str!("Robot ID"), &mut robot_id).build() {
+            dribbling_label.set_robot_id(robot_id as u32);
+        }
+
+        let item_strings = vec![ImString::new("Yellow"), ImString::new("Blue")];
+        let item_strs: Vec<&ImStr> = item_strings.iter().map(ImString::as_ref).collect();
+        let mut team = dribbling_label.get_team().value();
+        if ui.combo(im_str!("Team"), &mut team, &item_strs, 2) {
+            let team = match protos::log_labels::Team::from_i32(team) {
+                Some(team) => team,
+                None => {
+                    eprintln!("Invalid team id: {}", team);
+                    dribbling_label.get_team()
+                }
+            };
+            dribbling_label.set_team(team);
+        }
+    }
 }
 
 fn ball_possession_tab<'a>(ui: &Ui<'a>, state: &mut State) {
