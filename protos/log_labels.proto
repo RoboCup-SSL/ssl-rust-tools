@@ -14,9 +14,9 @@ message DribblingLabel {
 
 message BallPossessionLabel {
   enum State {
-    YELLOW_POSSES = 0;
-    BLUE_POSSES = 1;
-    NONE = 2;
+    NONE = 0;
+    YELLOW_POSSES = 1;
+    BLUE_POSSES = 2;
   }
 
   State state = 1;
