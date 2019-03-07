@@ -276,7 +276,41 @@ fn dribbling_tab<'a>(ui: &Ui<'a>, state: &mut State) {
 }
 
 fn ball_possession_tab<'a>(ui: &Ui<'a>, state: &mut State) {
-    ui.text("ball possession tab");
+    let player_widget = state.player_widget.as_ref().unwrap();
+    let curr_frame = player_widget.curr_frame();
+
+    let ball_possession_label = &mut state.ball_possession_labels[curr_frame];
+
+    let item_strings = vec![
+        ImString::new("None"),
+        ImString::new("Blue"),
+        ImString::new("Yellow"),
+    ];
+    let item_strs: Vec<&ImStr> = item_strings.iter().map(ImString::as_ref).collect();
+    let mut ball_possession_state = ball_possession_label.get_state().value();
+    if ui.combo(
+        im_str!("Who Possesses the ball?"),
+        &mut ball_possession_state,
+        &item_strs,
+        3,
+    ) {
+        let ball_possession_state =
+            match protos::log_labels::BallPossessionLabel_State::from_i32(ball_possession_state) {
+                Some(ball_possession_state) => ball_possession_state,
+                None => {
+                    eprintln!("Invalid ball possession state: {}", ball_possession_state);
+                    ball_possession_label.get_state()
+                }
+            };
+        ball_possession_label.set_state(ball_possession_state);
+    }
+
+    if ball_possession_state != protos::log_labels::BallPossessionLabel_State::NONE.value() {
+        let mut robot_id = ball_possession_label.get_robot_id() as i32;
+        if ui.input_int(im_str!("Robot ID"), &mut robot_id).build() {
+            ball_possession_label.set_robot_id(robot_id as u32);
+        }
+    }
 }
 
 fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
