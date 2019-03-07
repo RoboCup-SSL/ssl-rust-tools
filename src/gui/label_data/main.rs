@@ -55,15 +55,13 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
         .build(|| {
             ui.menu_bar(|| {
                 ui.menu(im_str!("File")).build(|| {
-                    if ui
-                        .menu_item(im_str!("Open"))
-                        .shortcut(im_str!("Ctrl+o"))
-                        .build()
-                    {
-                        state.file_menu.show_open_modal = true;
+                    if ui.menu_item(im_str!("Open data file")).build() {
+                        state.file_menu.show_open_data_file_modal = true;
+                    }
+                    if ui.menu_item(im_str!("Open label file")).build() {
+                        state.file_menu.show_open_label_file_modal = true;
                     }
                     ui.menu_item(im_str!("{} Save", FA_SAVE))
-                        .shortcut(im_str!("Ctrl+s"))
                         .enabled(false)
                         .build();
                     if ui.menu_item(im_str!("Save As..")).enabled(false).build() {
@@ -81,21 +79,24 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                 None => {}
             };
 
-            if state.file_menu.show_open_modal {
+            if state.file_menu.show_open_data_file_modal {
                 ui.open_popup(im_str!("Open Labeler Data File"));
-                state.file_menu.show_open_modal = false;
+                state.file_menu.show_open_data_file_modal = false;
             }
             ui.popup_modal(im_str!("Open Labeler Data File")).build(|| {
-                match state.file_menu.open_file_browser.build(ui) {
+                match state.file_menu.open_data_file_browser.build(ui) {
                     Some(response) => match response {
                         widgets::FileDialogResponse::Select => {
                             let path = state
                                 .file_menu
-                                .open_file_browser
+                                .open_data_file_browser
                                 .current_selection()
                                 .unwrap();
                             if path.is_dir() {
-                                state.file_menu.open_file_browser.change_curr_dir(&path);
+                                state
+                                    .file_menu
+                                    .open_data_file_browser
+                                    .change_curr_dir(&path);
                             } else {
                                 // open the player on the selected file
                                 let reader: Box<SeekReadSend> =
@@ -103,6 +104,35 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
 
                                 state.player_widget = Some(widgets::LabelDataPlayer::new(reader));
 
+                                ui.close_current_popup();
+                            }
+                        }
+                        _ => {
+                            ui.close_current_popup();
+                        }
+                    },
+                    None => {}
+                };
+            });
+            if state.file_menu.show_open_label_file_modal {
+                ui.open_popup(im_str!("Open Label File"));
+                state.file_menu.show_open_label_file_modal = false;
+            }
+            ui.popup_modal(im_str!("Open Label File")).build(|| {
+                match state.file_menu.open_label_file_browser.build(ui) {
+                    Some(response) => match response {
+                        widgets::FileDialogResponse::Select => {
+                            let path = state
+                                .file_menu
+                                .open_label_file_browser
+                                .current_selection()
+                                .unwrap();
+                            if path.is_dir() {
+                                state
+                                    .file_menu
+                                    .open_label_file_browser
+                                    .change_curr_dir(&path);
+                            } else {
                                 ui.close_current_popup();
                             }
                         }
@@ -128,9 +158,12 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
 }
 
 struct FileMenu {
-    // open
-    show_open_modal: bool,
-    open_file_browser: widgets::FileBrowser,
+    // open data file
+    show_open_data_file_modal: bool,
+    open_data_file_browser: widgets::FileBrowser,
+    // open label file
+    show_open_label_file_modal: bool,
+    open_label_file_browser: widgets::FileBrowser,
     // save
     show_save_as_modal: bool,
     // exit
@@ -139,15 +172,24 @@ struct FileMenu {
 
 impl Default for FileMenu {
     fn default() -> Self {
-        let filter_lists = vec![
+        let data_file_filter_lists = vec![
             widgets::FileBrowserFilter::new("labeler", ".*\\.labeler").unwrap(),
+            widgets::FileBrowserFilter::new("all", ".*").unwrap(),
+        ];
+        let label_file_filter_lists = vec![
+            widgets::FileBrowserFilter::new("label", ".*\\.label").unwrap(),
             widgets::FileBrowserFilter::new("all", ".*").unwrap(),
         ];
 
         FileMenu {
-            // open
-            show_open_modal: false,
-            open_file_browser: widgets::FileBrowser::new(None, Some(filter_lists)).unwrap(),
+            // open data file
+            show_open_data_file_modal: false,
+            open_data_file_browser: widgets::FileBrowser::new(None, Some(data_file_filter_lists))
+                .unwrap(),
+            // open label file
+            show_open_label_file_modal: false,
+            open_label_file_browser: widgets::FileBrowser::new(None, Some(label_file_filter_lists))
+                .unwrap(),
             // save
             show_save_as_modal: false,
             // exit
