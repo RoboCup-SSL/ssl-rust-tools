@@ -145,6 +145,28 @@ impl FileBrowser {
                 }
             }
 
+            self.directories.sort_by(|a, b| {
+                let a_str = a.to_string_lossy();
+                let b_str = b.to_string_lossy();
+
+                if a_str != b_str {
+                    if a_str == "./" {
+                        cmp::Ordering::Less
+                    } else if a_str == "../" {
+                        if b_str == "./" {
+                            cmp::Ordering::Greater
+                        } else {
+                            cmp::Ordering::Less
+                        }
+                    } else {
+                        a_str.cmp(&b_str)
+                    }
+                } else {
+                    cmp::Ordering::Equal
+                }
+            });
+            self.files.sort_unstable();
+
             self.is_dirty = false;
         }
 
