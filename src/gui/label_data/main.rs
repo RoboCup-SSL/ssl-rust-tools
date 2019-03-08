@@ -193,6 +193,7 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                                     .open_label_file_browser
                                     .change_curr_dir(&path);
                             } else {
+                                load_labels(state);
                                 ui.close_current_popup();
                             }
                         }
@@ -377,4 +378,46 @@ fn save_labels(state: &mut State) {
         .open(label_file_path)
         .unwrap();
     label_file.write_all(&msg_bytes).unwrap();
+}
+
+fn load_labels(state: &mut State) {
+    let label_file_path = state
+        .file_menu
+        .open_label_file_browser
+        .current_selection()
+        .unwrap();
+
+    let mut label_file = fs::File::open(label_file_path.clone()).unwrap();
+    let labels: protos::log_labels::Labels = protobuf::parse_from_reader(&mut label_file).unwrap();
+
+    let dribbling_labels = labels.get_dribbling_labels().to_vec();
+    let ball_possession_labels = labels.get_ball_possession_labels().to_vec();
+
+    // TODO(dschwab): Show these logs in the gui
+    if dribbling_labels.len() != ball_possession_labels.len() {
+        eprintln!(
+            "Dribbling labels and ball possession labels do not match length. {} != {}",
+            dribbling_labels.len(),
+            ball_possession_labels.len()
+        );
+        return;
+    }
+    if dribbling_labels.len() != state.player_widget.as_ref().unwrap().len() {
+        eprintln!(
+            "Number of instantaneous labels does not match number of frames in data file. {} != {}",
+            dribbling_labels.len(),
+            state.player_widget.as_ref().unwrap().len()
+        );
+        return;
+    }
+
+    let passing_labels = labels.get_passing_labels().to_vec();
+    let goal_shot_labels = labels.get_goal_shot_labels().to_vec();
+
+    state.dribbling_labels = dribbling_labels;
+    state.ball_possession_labels = ball_possession_labels;
+    state.passing_labels = passing_labels;
+    state.goal_shot_labels = goal_shot_labels;
+
+    state.file_menu.save_path = Some(label_file_path);
 }
