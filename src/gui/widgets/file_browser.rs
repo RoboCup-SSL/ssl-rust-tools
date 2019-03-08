@@ -4,6 +4,9 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{cmp, ffi, fmt, fs, io};
 
+const FA_FOLDER: &str = "\u{f07b}";
+const FA_FILE: &str = "\u{f15b}";
+
 enum Selection {
     None,
     Directory(usize),
@@ -57,6 +60,12 @@ pub struct FileBrowser {
     files: Vec<PathBuf>,
     filter_labels: Vec<ImString>,
 
+    // modal new directory
+    new_directory: ImString,
+
+    // modal new file
+    new_file: ImString,
+
     // drawing variables
     is_dirty: bool,
 }
@@ -96,6 +105,12 @@ impl FileBrowser {
             directories: vec![],
             files: vec![],
             filter_labels,
+
+            // modal new directory
+            new_directory: ImString::with_capacity(255),
+
+            // modal new file
+            new_file: ImString::with_capacity(255),
 
             is_dirty: true,
         })
@@ -197,6 +212,78 @@ impl FileBrowser {
         let column_size = (column_width, text_height);
 
         ui.text(im_str!("{}", self.curr_dir.to_str().unwrap_or("ERROR")));
+        let new_dir_label = im_str!("{} New Directory", FA_FOLDER);
+        if ui.button(new_dir_label, (0.0, 0.0)) {
+            self.new_directory.clear();
+            ui.open_popup(im_str!("new directory modal"));
+        }
+        ui.popup_modal(im_str!("new directory modal")).build(|| {
+            let line_height = ui.calc_text_size(im_str!("f"), false, 1000.0).y + 20.0;
+            ui.child_frame(
+                im_str!("New Directory frame"),
+                (child_frame_size.0, 2.0 * line_height),
+            )
+            .show_borders(false)
+            .build(|| {
+                ui.input_text(im_str!("New directory name"), &mut self.new_directory)
+                    .build();
+
+                let ok_label = im_str!("Create");
+                if ui.button(ok_label, (0.0, 0.0)) {
+                    // TODO(dschwab): Display error if unsuccessful
+                    let mut new_dir = self.curr_dir.clone();
+                    new_dir.push(Path::new(self.new_directory.to_str()));
+                    fs::create_dir(new_dir).unwrap();
+
+                    self.is_dirty = true;
+                    ui.close_current_popup();
+                }
+                let text_size = ui.calc_text_size(ok_label, true, parent_frame_size.0);
+                ui.same_line(text_size.x + 20.0);
+                if ui.button(im_str!("Cancel"), (0.0, 0.0)) {
+                    ui.close_current_popup();
+                }
+            })
+        });
+
+        let new_dir_label_size = ui.calc_text_size(new_dir_label, true, parent_frame_size.0);
+        ui.same_line(new_dir_label_size.x + 20.0);
+        if ui.button(im_str!("{} New File", FA_FILE), (0.0, 0.0)) {
+            ui.open_popup(im_str!("new file modal"));
+        }
+
+        ui.popup_modal(im_str!("new file modal")).build(|| {
+            let line_height = ui.calc_text_size(im_str!("f"), false, 1000.0).y + 20.0;
+            ui.child_frame(
+                im_str!("New File frame"),
+                (child_frame_size.0, 2.0 * line_height),
+            )
+            .show_borders(false)
+            .build(|| {
+                ui.input_text(im_str!("New file name"), &mut self.new_file)
+                    .build();
+
+                let ok_label = im_str!("Create");
+                if ui.button(ok_label, (0.0, 0.0)) {
+                    // TODO(dschwab): Display error if unsuccessful
+                    let mut new_file = self.curr_dir.clone();
+                    new_file.push(Path::new(self.new_file.to_str()));
+                    fs::OpenOptions::new()
+                        .append(true)
+                        .create_new(true)
+                        .open(new_file)
+                        .unwrap();
+
+                    self.is_dirty = true;
+                    ui.close_current_popup();
+                }
+                let text_size = ui.calc_text_size(ok_label, true, parent_frame_size.0);
+                ui.same_line(text_size.x + 20.0);
+                if ui.button(im_str!("Cancel"), (0.0, 0.0)) {
+                    ui.close_current_popup();
+                }
+            })
+        });
 
         let mut double_clicked = false;
         ui.child_frame(im_str!("Frame name"), child_frame_size)
