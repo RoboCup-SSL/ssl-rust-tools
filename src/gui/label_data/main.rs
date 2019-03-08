@@ -6,6 +6,7 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 // type alias for multiple traits
 trait SeekReadSend: Seek + Read + Send {}
@@ -15,6 +16,8 @@ const CLEAR_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 // icon font codes
 const FA_SAVE: &str = "\u{f0c7}";
+const FA_PLUS: &str = "\u{f0fe}";
+const FA_TRASH: &str = "\u{f1f8}";
 
 struct State {
     file_menu: FileMenu,
@@ -22,7 +25,9 @@ struct State {
     tabs: widgets::TabBar,
     dribbling_labels: Vec<protos::log_labels::DribblingLabel>,
     ball_possession_labels: Vec<protos::log_labels::BallPossessionLabel>,
+    curr_passing_label: usize,
     passing_labels: Vec<protos::log_labels::PassingLabel>,
+    curr_goal_shot_label: usize,
     goal_shot_labels: Vec<protos::log_labels::GoalShotLabel>,
 }
 
@@ -39,7 +44,9 @@ impl State {
             ]),
             dribbling_labels: vec![],
             ball_possession_labels: vec![],
+            curr_passing_label: 0,
             passing_labels: vec![],
+            curr_goal_shot_label: 0,
             goal_shot_labels: vec![],
         }
     }
@@ -355,7 +362,124 @@ fn ball_possession_tab<'a>(ui: &Ui<'a>, state: &mut State) {
 }
 
 fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
-    ui.text("passing tab");
+    let parent_frame = {
+        let frame_size = ui.frame_size().logical_size;
+        (frame_size.0 as f32, frame_size.1 as f32)
+    };
+    let start_pos = ui.get_cursor_screen_pos();
+    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 6.0 * start_pos.1);
+
+    let add_label = im_str!("{} Add", FA_PLUS);
+    if ui.button(add_label, (0.0, 0.0)) {
+        let new_label = protos::log_labels::PassingLabel::new();
+        state.passing_labels.push(new_label);
+
+        state.curr_passing_label = state.passing_labels.len() - 1;
+    }
+    let text_size = ui.calc_text_size(add_label, false, parent_frame.0);
+    ui.same_line(text_size.x + 20.0);
+    if ui.button(im_str!("{} Delete", FA_TRASH), (0.0, 0.0)) {
+        if state.curr_passing_label < state.passing_labels.len() {
+            state.passing_labels.remove(state.curr_passing_label);
+            if state.curr_passing_label != 0 {
+                state.curr_passing_label -= 1;
+            }
+        }
+    }
+
+    let list_start_pos = ui.get_cursor_screen_pos();
+    let mut curr_selection: Box<usize> = Box::new(state.curr_passing_label);
+    ui.child_frame(im_str!("passing_select_list"), child_frame_size)
+        .show_borders(true)
+        .build(|| {
+            for (i, passing_label) in state.passing_labels.iter().enumerate() {
+                let selected = i == *curr_selection;
+                if ui.selectable(
+                    im_str!(
+                        "{} -- {}",
+                        passing_label.get_start_frame(),
+                        passing_label.get_end_frame(),
+                    ),
+                    selected,
+                    ImGuiSelectableFlags::AllowDoubleClick,
+                    (child_frame_size.0, text_size.y),
+                ) {
+                    *curr_selection = i;
+                }
+            }
+        });
+    state.curr_passing_label = *curr_selection;
+
+    let x_offset = list_start_pos.0 + child_frame_size.0 + 20.0;
+    ui.set_cursor_screen_pos((x_offset, list_start_pos.1));
+
+    ui.push_item_width(0.4 * parent_frame.0 - 40.0);
+
+    if state.passing_labels.is_empty() {
+        ui.pop_item_width();
+        return;
+    }
+
+    let passing_label = &mut state.passing_labels[state.curr_passing_label];
+
+    let mut start_frame = passing_label.get_start_frame() as i32;
+    if ui
+        .input_int(im_str!("Start Frame"), &mut start_frame)
+        .build()
+    {
+        passing_label.set_start_frame(start_frame as u64);
+        if start_frame > passing_label.get_end_frame() as i32 {
+            passing_label.set_end_frame(start_frame as u64);
+        }        
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut end_frame = passing_label.get_end_frame() as i32;
+    if ui.input_int(im_str!("End Frame"), &mut end_frame).build() {
+        passing_label.set_end_frame(end_frame as u64);
+        if end_frame < passing_label.get_start_frame() as i32 {
+            passing_label.set_start_frame(end_frame as u64);
+        }
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut successful = passing_label.get_successful();
+    if ui.checkbox(im_str!("Successful?"), &mut successful) {
+        passing_label.set_successful(successful);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut passer_id = passing_label.get_passer_id() as i32;
+    if ui.input_int(im_str!("Passer ID"), &mut passer_id).build() {
+        passing_label.set_passer_id(passer_id as u32);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let item_strings = vec![ImString::new("Yellow"), ImString::new("Blue")];
+    let item_strs: Vec<&ImStr> = item_strings.iter().map(ImString::as_ref).collect();
+    let mut team = passing_label.get_passer_team().value();
+    if ui.combo(im_str!("Passer Team"), &mut team, &item_strs, 2) {
+        let team = match protos::log_labels::Team::from_i32(team) {
+            Some(team) => team,
+            None => {
+                eprintln!("Invalid team id: {}", team);
+                passing_label.get_passer_team()
+            }
+        };
+        passing_label.set_passer_team(team);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut receiver_id = passing_label.get_receiver_id() as i32;
+    if ui
+        .input_int(im_str!("Receiver ID"), &mut receiver_id)
+        .build()
+    {
+        passing_label.set_receiver_id(receiver_id as u32);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    ui.pop_item_width();
 }
 
 fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {

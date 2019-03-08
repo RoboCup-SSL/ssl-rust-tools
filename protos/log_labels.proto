@@ -25,7 +25,7 @@ message BallPossessionLabel {
 
 message PassingLabel {
   uint64 start_frame = 1;
-  uint64 end_time = 2;
+  uint64 end_frame = 2;
   bool successful = 3;
   uint32 passer_id = 4;
   Team passer_team = 5;
