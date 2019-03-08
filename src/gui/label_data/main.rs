@@ -6,7 +6,6 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 // type alias for multiple traits
 trait SeekReadSend: Seek + Read + Send {}
@@ -430,7 +429,7 @@ fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
         passing_label.set_start_frame(start_frame as u64);
         if start_frame > passing_label.get_end_frame() as i32 {
             passing_label.set_end_frame(start_frame as u64);
-        }        
+        }
     }
     ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
 
@@ -483,7 +482,115 @@ fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
 }
 
 fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {
-    ui.text("goal shot tab");
+    let parent_frame = {
+        let frame_size = ui.frame_size().logical_size;
+        (frame_size.0 as f32, frame_size.1 as f32)
+    };
+    let start_pos = ui.get_cursor_screen_pos();
+    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 6.0 * start_pos.1);
+
+    let add_label = im_str!("{} Add", FA_PLUS);
+    if ui.button(add_label, (0.0, 0.0)) {
+        let new_label = protos::log_labels::GoalShotLabel::new();
+        state.goal_shot_labels.push(new_label);
+
+        state.curr_goal_shot_label = state.goal_shot_labels.len() - 1;
+    }
+    let text_size = ui.calc_text_size(add_label, false, parent_frame.0);
+    ui.same_line(text_size.x + 20.0);
+    if ui.button(im_str!("{} Delete", FA_TRASH), (0.0, 0.0)) {
+        if state.curr_goal_shot_label < state.goal_shot_labels.len() {
+            state.goal_shot_labels.remove(state.curr_goal_shot_label);
+            if state.curr_goal_shot_label != 0 {
+                state.curr_goal_shot_label -= 1;
+            }
+        }
+    }
+
+    let list_start_pos = ui.get_cursor_screen_pos();
+    let mut curr_selection: Box<usize> = Box::new(state.curr_goal_shot_label);
+    ui.child_frame(im_str!("goal_shot_select_list"), child_frame_size)
+        .show_borders(true)
+        .build(|| {
+            for (i, goal_shot_label) in state.goal_shot_labels.iter().enumerate() {
+                let selected = i == *curr_selection;
+                if ui.selectable(
+                    im_str!(
+                        "{} -- {}",
+                        goal_shot_label.get_start_frame(),
+                        goal_shot_label.get_end_frame(),
+                    ),
+                    selected,
+                    ImGuiSelectableFlags::AllowDoubleClick,
+                    (child_frame_size.0, text_size.y),
+                ) {
+                    *curr_selection = i;
+                }
+            }
+        });
+    state.curr_goal_shot_label = *curr_selection;
+
+    let x_offset = list_start_pos.0 + child_frame_size.0 + 20.0;
+    ui.set_cursor_screen_pos((x_offset, list_start_pos.1));
+
+    ui.push_item_width(0.4 * parent_frame.0 - 40.0);
+
+    if state.goal_shot_labels.is_empty() {
+        ui.pop_item_width();
+        return;
+    }
+
+    let goal_shot_label = &mut state.goal_shot_labels[state.curr_goal_shot_label];
+
+    let mut start_frame = goal_shot_label.get_start_frame() as i32;
+    if ui
+        .input_int(im_str!("Start Frame"), &mut start_frame)
+        .build()
+    {
+        goal_shot_label.set_start_frame(start_frame as u64);
+        if start_frame > goal_shot_label.get_end_frame() as i32 {
+            goal_shot_label.set_end_frame(start_frame as u64);
+        }
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut end_frame = goal_shot_label.get_end_frame() as i32;
+    if ui.input_int(im_str!("End Frame"), &mut end_frame).build() {
+        goal_shot_label.set_end_frame(end_frame as u64);
+        if end_frame < goal_shot_label.get_start_frame() as i32 {
+            goal_shot_label.set_start_frame(end_frame as u64);
+        }
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut successful = goal_shot_label.get_successful();
+    if ui.checkbox(im_str!("Successful?"), &mut successful) {
+        goal_shot_label.set_successful(successful);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let mut shooter_id = goal_shot_label.get_shooter_id() as i32;
+    if ui.input_int(im_str!("Shooter ID"), &mut shooter_id).build() {
+        goal_shot_label.set_shooter_id(shooter_id as u32);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    let item_strings = vec![ImString::new("Yellow"), ImString::new("Blue")];
+    let item_strs: Vec<&ImStr> = item_strings.iter().map(ImString::as_ref).collect();
+    let mut team = goal_shot_label.get_shooter_team().value();
+    if ui.combo(im_str!("Shooter Team"), &mut team, &item_strs, 2) {
+        let team = match protos::log_labels::Team::from_i32(team) {
+            Some(team) => team,
+            None => {
+                eprintln!("Invalid team id: {}", team);
+                goal_shot_label.get_shooter_team()
+            }
+        };
+        goal_shot_label.set_shooter_team(team);
+    }
+    ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
+
+    ui.pop_item_width();    
 }
 
 fn save_labels(state: &mut State) {
