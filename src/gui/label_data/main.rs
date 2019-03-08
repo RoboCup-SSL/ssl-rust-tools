@@ -590,7 +590,7 @@ fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {
     }
     ui.set_cursor_screen_pos((x_offset, ui.get_cursor_screen_pos().1));
 
-    ui.pop_item_width();    
+    ui.pop_item_width();
 }
 
 fn save_labels(state: &mut State) {
@@ -600,7 +600,15 @@ fn save_labels(state: &mut State) {
     labels.set_ball_possession_labels(RepeatedField::from_vec(
         state.ball_possession_labels.clone(),
     ));
-    labels.set_passing_labels(RepeatedField::from(state.passing_labels.clone()));
+
+    // sort the passing labels by the start frame
+    let mut passing_labels = state.passing_labels.clone();
+    passing_labels.sort_by(|a, b| a.get_start_frame().cmp(&b.get_start_frame()));
+    labels.set_passing_labels(RepeatedField::from(passing_labels));
+
+    // sort goal shot labels by start frame
+    let mut goal_shot_labels = state.goal_shot_labels.clone();
+    goal_shot_labels.sort_by(|a, b| a.get_start_frame().cmp(&b.get_start_frame()));
     labels.set_goal_shot_labels(RepeatedField::from(state.goal_shot_labels.clone()));
 
     // serialize the protobuf
