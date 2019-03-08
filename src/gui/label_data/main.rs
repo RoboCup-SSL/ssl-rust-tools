@@ -1,9 +1,11 @@
 use imgui::*;
-use protobuf::ProtobufEnum;
+use protobuf::{Message, ProtobufEnum, RepeatedField};
 use ssl_log_tools::gui::{support, widgets};
 use ssl_log_tools::protos;
+use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 // type alias for multiple traits
 trait SeekReadSend: Seek + Read + Send {}
@@ -20,6 +22,8 @@ struct State {
     tabs: widgets::TabBar,
     dribbling_labels: Vec<protos::log_labels::DribblingLabel>,
     ball_possession_labels: Vec<protos::log_labels::BallPossessionLabel>,
+    passing_labels: Vec<protos::log_labels::PassingLabel>,
+    goal_shot_labels: Vec<protos::log_labels::GoalShotLabel>,
 }
 
 impl State {
@@ -35,6 +39,8 @@ impl State {
             ]),
             dribbling_labels: vec![],
             ball_possession_labels: vec![],
+            passing_labels: vec![],
+            goal_shot_labels: vec![],
         }
     }
 }
@@ -66,6 +72,8 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
         .menu_bar(true)
         .position((0.0, 0.0), ImGuiCond::Always)
         .build(|| {
+            let data_file_loaded = state.player_widget.is_some();
+
             ui.menu_bar(|| {
                 ui.menu(im_str!("File")).build(|| {
                     if ui.menu_item(im_str!("Open data file")).build() {
@@ -73,15 +81,23 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
                     }
                     if ui
                         .menu_item(im_str!("Open label file"))
-                        .enabled(false)
+                        .enabled(data_file_loaded)
                         .build()
                     {
                         state.file_menu.show_open_label_file_modal = true;
                     }
-                    ui.menu_item(im_str!("{} Save", FA_SAVE))
-                        .enabled(false)
-                        .build();
-                    if ui.menu_item(im_str!("Save As..")).enabled(false).build() {
+                    if ui
+                        .menu_item(im_str!("{} Save", FA_SAVE))
+                        .enabled(data_file_loaded)
+                        .build()
+                    {
+                        save_labels(state);
+                    }
+                    if ui
+                        .menu_item(im_str!("Save As.."))
+                        .enabled(data_file_loaded)
+                        .build()
+                    {
                         state.file_menu.show_save_as_modal = true;
                     }
                     ui.separator();
@@ -209,6 +225,7 @@ struct FileMenu {
     show_open_label_file_modal: bool,
     open_label_file_browser: widgets::FileBrowser,
     // save
+    save_path: Option<PathBuf>,
     show_save_as_modal: bool,
     // exit
     should_exit: bool,
@@ -235,6 +252,7 @@ impl Default for FileMenu {
             open_label_file_browser: widgets::FileBrowser::new(None, Some(label_file_filter_lists))
                 .unwrap(),
             // save
+            save_path: None,
             show_save_as_modal: false,
             // exit
             should_exit: false,
@@ -319,4 +337,44 @@ fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
 
 fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {
     ui.text("goal shot tab");
+}
+
+fn save_labels(state: &mut State) {
+    // create the protobuf file
+    let mut labels = protos::log_labels::Labels::new();
+    labels.set_dribbling_labels(RepeatedField::from_vec(state.dribbling_labels.clone()));
+    labels.set_ball_possession_labels(RepeatedField::from_vec(
+        state.ball_possession_labels.clone(),
+    ));
+    labels.set_passing_labels(RepeatedField::from(state.passing_labels.clone()));
+    labels.set_goal_shot_labels(RepeatedField::from(state.goal_shot_labels.clone()));
+
+    // serialize the protobuf
+    let msg_bytes = labels.write_to_bytes().unwrap();
+
+    // default file name is same as opened file but with the .label extension
+    let label_file_path = match state.file_menu.save_path {
+        Some(ref save_path) => save_path,
+        None => {
+            let mut label_file_path = state
+                .file_menu
+                .open_data_file_browser
+                .current_selection()
+                .unwrap();
+            label_file_path.set_extension("label");
+
+            state.file_menu.save_path = Some(label_file_path);
+
+            state.file_menu.save_path.as_ref().unwrap()
+        }
+    };
+
+    // open the file for writing, overwriting any data currently there
+    let mut label_file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(label_file_path)
+        .unwrap();
+    label_file.write_all(&msg_bytes).unwrap();
 }
