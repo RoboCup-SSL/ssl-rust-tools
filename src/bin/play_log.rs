@@ -1,6 +1,6 @@
 use clap::{App, Arg};
-use ssl_log_tools::persistence::reader;
-use ssl_log_tools::player;
+use ssl_rust_tools::persistence::reader;
+use ssl_rust_tools::player;
 use std::path::Path;
 
 fn main() {

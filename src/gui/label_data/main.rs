@@ -1,7 +1,7 @@
 use imgui::*;
 use protobuf::{Message, ProtobufEnum, RepeatedField};
-use ssl_log_tools::gui::{support, widgets};
-use ssl_log_tools::protos;
+use ssl_rust_tools::gui::{support, widgets};
+use ssl_rust_tools::protos;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;

@@ -1,7 +1,7 @@
 use clap::{App, Arg};
 use indicatif::{ProgressBar, ProgressStyle};
-use ssl_log_tools::labeler::writer;
-use ssl_log_tools::persistence::reader;
+use ssl_rust_tools::labeler::writer;
+use ssl_rust_tools::persistence::reader;
 use std::fs;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;

@@ -1,7 +1,7 @@
 extern crate clap;
-extern crate ssl_log_tools;
+extern crate ssl_rust_tools;
 use clap::{App, Arg};
-use ssl_log_tools::persistence::reader;
+use ssl_rust_tools::persistence::reader;
 use std::path::Path;
 
 fn main() {

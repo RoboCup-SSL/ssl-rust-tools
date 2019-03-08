@@ -1,7 +1,7 @@
 use clap::{App, Arg};
 use indicatif::{ProgressBar, ProgressStyle};
-use ssl_log_tools::labeler::player;
-use ssl_log_tools::labeler::reader::LabelerDataReader;
+use ssl_rust_tools::labeler::player;
+use ssl_rust_tools::labeler::reader::LabelerDataReader;
 use std::path::Path;
 use std::{thread, time};
 

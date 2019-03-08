@@ -1,5 +1,5 @@
 [package]
-name = "ssl-log-tools"
+name = "ssl-rust-tools"
 version = "0.1.0"
 authors = ["Devin Schwab <digidevin@gmail.com>"]
 edition = "2018"

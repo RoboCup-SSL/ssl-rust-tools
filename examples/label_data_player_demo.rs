@@ -1,6 +1,6 @@
 use clap::{App, Arg};
 use imgui::*;
-use ssl_log_tools::gui::{support, widgets};
+use ssl_rust_tools::gui::{support, widgets};
 use std::fs;
 use std::io::{BufReader, Seek, Read};
 use std::path::Path;

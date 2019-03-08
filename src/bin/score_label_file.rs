@@ -1,6 +1,6 @@
 use clap::{App, Arg};
 use protobuf;
-use ssl_log_tools::protos::log_labels;
+use ssl_rust_tools::protos::log_labels;
 use std::cmp;
 use std::fs;
 
