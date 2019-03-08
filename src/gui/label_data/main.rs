@@ -206,12 +206,34 @@ fn main_window<'a>(ui: &Ui<'a>, state: &mut State) -> bool {
             });
             if state.file_menu.show_save_as_modal {
                 ui.open_popup(im_str!("Save Labels"));
+                state.file_menu.show_save_as_modal = false;
             }
             ui.popup_modal(im_str!("Save Labels")).build(|| {
-                ui.text("Save As modal");
-                if ui.button(im_str!("OK"), (0.0, 0.0)) {
-                    ui.close_current_popup();
-                }
+                match state.file_menu.open_label_file_browser.build(ui) {
+                    Some(response) => match response {
+                        widgets::FileDialogResponse::Select => {
+                            let path = state
+                                .file_menu
+                                .open_label_file_browser
+                                .current_selection()
+                                .unwrap();
+                            if path.is_dir() {
+                                state
+                                    .file_menu
+                                    .open_label_file_browser
+                                    .change_curr_dir(&path);
+                            } else {
+                                state.file_menu.save_path = Some(path);
+                                save_labels(state);
+                                ui.close_current_popup();
+                            }
+                        }
+                        _ => {
+                            ui.close_current_popup();
+                        }
+                    },
+                    None => {}
+                };
             });
         });
 
