@@ -3,6 +3,7 @@ use protobuf;
 use ssl_rust_tools::protos::log_labels;
 use std::cmp;
 use std::fs;
+use protobuf::ProtobufEnum;
 
 fn main() {
     let matches = App::new("Score a label file.")
@@ -67,12 +68,15 @@ fn score_dribbling(
         if ground_truth_label.get_is_dribbling() == predicted_label.get_is_dribbling() {
             score += 1.0;
 
-            if ground_truth_label.get_robot_id() == predicted_label.get_robot_id() {
-                score += 0.5;
-            }
+            // only score sub-fields if labeled as dribbling in ground truth
+            if ground_truth_label.get_is_dribbling() {
+                if ground_truth_label.get_robot_id() == predicted_label.get_robot_id() {
+                    score += 0.5;
+                }
 
-            if ground_truth_label.get_team() == predicted_label.get_team() {
-                score += 0.5;
+                if ground_truth_label.get_team() == predicted_label.get_team() {
+                    score += 0.5;
+                }
             }
         }
     }
@@ -91,8 +95,11 @@ fn score_ball_possession(
         if ground_truth_label.get_state() == predicted_label.get_state() {
             score += 1.0;
 
-            if ground_truth_label.get_robot_id() == predicted_label.get_robot_id() {
-                score += 0.5;
+            // only score if yellow/blue in possession
+            if ground_truth_label.get_state() != log_labels::BallPossessionLabel_State::NONE {
+                if ground_truth_label.get_robot_id() == predicted_label.get_robot_id() {
+                    score += 0.5;
+                }
             }
         }
     }
