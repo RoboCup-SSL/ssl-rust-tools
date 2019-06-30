@@ -293,7 +293,21 @@ fn dribbling_tab<'a>(ui: &Ui<'a>, state: &mut State) {
     let player_widget = state.player_widget.as_ref().unwrap();
     let curr_frame = player_widget.curr_frame();
 
+    let mut prev_frame_label: Option<protos::log_labels::DribblingLabel> = None;
+    if curr_frame != 0 && ui.button(im_str!("Copy Last Label"), (0.0, 0.0)) {
+        let prev_frame = curr_frame - 1;
+        prev_frame_label = Some(state.dribbling_labels[prev_frame].clone());
+    }
+
     let dribbling_label = &mut state.dribbling_labels[curr_frame];
+    match prev_frame_label {
+        Some(label) => {
+            dribbling_label.set_is_dribbling(label.get_is_dribbling());
+            dribbling_label.set_robot_id(label.get_robot_id());
+            dribbling_label.set_team(label.get_team());
+        }
+        _ => {}
+    };
 
     let mut is_dribbling = dribbling_label.get_is_dribbling();
     if ui.checkbox(im_str!("Is Dribbling?"), &mut is_dribbling) {
@@ -326,7 +340,20 @@ fn ball_possession_tab<'a>(ui: &Ui<'a>, state: &mut State) {
     let player_widget = state.player_widget.as_ref().unwrap();
     let curr_frame = player_widget.curr_frame();
 
+    let mut prev_frame_label: Option<protos::log_labels::BallPossessionLabel> = None;
+    if curr_frame != 0 && ui.button(im_str!("Copy Last Label"), (0.0, 0.0)) {
+        let prev_frame = curr_frame - 1;
+        prev_frame_label = Some(state.ball_possession_labels[prev_frame].clone());
+    }
+
     let ball_possession_label = &mut state.ball_possession_labels[curr_frame];
+    match prev_frame_label {
+        Some(label) => {
+            ball_possession_label.set_state(label.get_state());
+            ball_possession_label.set_robot_id(label.get_robot_id());
+        }
+        _ => {}
+    };
 
     let item_strings = vec![
         ImString::new("None"),
@@ -366,7 +393,7 @@ fn passing_tab<'a>(ui: &Ui<'a>, state: &mut State) {
         (frame_size.0 as f32, frame_size.1 as f32)
     };
     let start_pos = ui.get_cursor_screen_pos();
-    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 6.0 * start_pos.1);
+    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 3.0 * start_pos.1);
 
     let add_label = im_str!("{} Add", FA_PLUS);
     if ui.button(add_label, (0.0, 0.0)) {
@@ -487,7 +514,7 @@ fn goal_shot_tab<'a>(ui: &Ui<'a>, state: &mut State) {
         (frame_size.0 as f32, frame_size.1 as f32)
     };
     let start_pos = ui.get_cursor_screen_pos();
-    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 6.0 * start_pos.1);
+    let child_frame_size = (0.333 * parent_frame.0, parent_frame.1 - 3.0 * start_pos.1);
 
     let add_label = im_str!("{} Add", FA_PLUS);
     if ui.button(add_label, (0.0, 0.0)) {
