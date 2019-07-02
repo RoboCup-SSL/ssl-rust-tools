@@ -3,7 +3,6 @@ use protobuf;
 use ssl_rust_tools::protos::log_labels;
 use std::cmp;
 use std::fs;
-use protobuf::ProtobufEnum;
 
 fn main() {
     let matches = App::new("Score a label file.")
