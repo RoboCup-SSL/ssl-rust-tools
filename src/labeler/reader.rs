@@ -100,6 +100,14 @@ impl<T: Read + Seek> LabelerDataReader<T> {
         self.metadata.get_num_cameras()
     }
 
+    pub fn num_passing_events(&self) -> u32 {
+        self.metadata.get_num_passing_events()
+    }
+
+    pub fn num_goal_shot_events(&self) -> u32 {
+        self.metadata.get_num_goal_shot_events()
+    }
+
     fn _read_message(&self) -> LabelerDataReaderResult<log_labeler_data::LabelerFrameGroup> {
         let mut reader = self.reader.borrow_mut();
 
@@ -160,11 +168,7 @@ impl<T: Read + Seek> LabelerDataReader<T> {
     }
 
     pub fn get_range_from(&self, start: usize) -> Option<Vec<log_labeler_data::LabelerFrameGroup>> {
-        let offsets: Vec<u64> = self
-            .metadata
-            .get_message_offsets()
-            .get(start..)?
-            .to_vec();
+        let offsets: Vec<u64> = self.metadata.get_message_offsets().get(start..)?.to_vec();
 
         Some(self._read_messages(&offsets).ok()?)
     }

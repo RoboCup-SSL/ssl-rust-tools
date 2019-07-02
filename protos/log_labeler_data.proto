@@ -6,6 +6,8 @@ import "messages_robocup_ssl_referee.proto";
 message LabelerMetadata {
   uint32 num_cameras = 1;
   repeated uint64 message_offsets = 2;
+  uint32 num_passing_events = 3;
+  uint32 num_goal_shot_events = 4;
 }
 
 message LabelerFrame {
