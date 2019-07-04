@@ -1,8 +1,16 @@
 use clap::{App, Arg};
+use ndarray::prelude::*;
+use petgraph::algo;
+use petgraph::prelude::*;
 use protobuf;
 use ssl_rust_tools::protos::log_labels;
 use std::cmp;
+use std::collections::HashMap;
 use std::fs;
+
+const UP: u8 = 0b1;
+const DIAG: u8 = 0b10;
+const LEFT: u8 = 0b100;
 
 fn main() {
     let matches = App::new("Score a label file.")
@@ -131,37 +139,140 @@ fn calc_iou(span_a: (u64, u64), span_b: (u64, u64)) -> f64 {
     intersect / union
 }
 
+// TODO: output pairs for scoring
+fn match_passing(
+    ground_truth_labels: &[log_labels::PassingLabel],
+    predicted_labels: &[log_labels::PassingLabel],
+) -> Vec<(usize, usize)> {
+    let mut h_matrix: Array2<f64> =
+        Array::zeros((predicted_labels.len() + 1, ground_truth_labels.len() + 1));
+    let mut dir_graph = Graph::<(usize, usize), u8>::new();
+    let mut dir_nodes: HashMap<(usize, usize), NodeIndex> = HashMap::new();
+    for i in 0..h_matrix.shape()[0] {
+        let node = dir_graph.add_node((i, 0));
+        dir_nodes.insert((i, 0), node);
+    }
+    for j in 0..h_matrix.shape()[1] {
+        let node = dir_graph.add_node((0, j));
+        dir_nodes.insert((0, j), node);
+    }
+
+    for i in 1..h_matrix.shape()[0] {
+        for j in 1..h_matrix.shape()[1] {
+            let gt_label = &ground_truth_labels[j - 1];
+            let pred_label = &predicted_labels[i - 1];
+            let gt_span = (gt_label.get_start_frame(), gt_label.get_end_frame());
+            let pred_span = (pred_label.get_start_frame(), pred_label.get_end_frame());
+            let iou = calc_iou(gt_span, pred_span);
+
+            let diag_score = h_matrix[[i - 1, j - 1]] + iou;
+            let up_score = h_matrix[[i - 1, j]];
+            let left_score = h_matrix[[i, j - 1]];
+
+            let node = dir_graph.add_node((i, j));
+            dir_nodes.insert((i, j), node);
+
+            let best_score = diag_score.max(up_score).max(left_score);
+            if (best_score - up_score).abs() < 1e-6 {
+                let parent_node = dir_nodes.get(&(i - 1, j)).unwrap();
+                dir_graph.add_edge(node, *parent_node, UP);
+            }
+            if (best_score - diag_score).abs() < 1e-6 {
+                let parent_node = dir_nodes.get(&(i - 1, j - 1)).unwrap();
+                dir_graph.add_edge(node, *parent_node, DIAG);
+            }
+            if (best_score - left_score).abs() < 1e-6 {
+                let parent_node = dir_nodes.get(&(i, j - 1)).unwrap();
+                dir_graph.add_edge(node, *parent_node, LEFT);
+            }
+            h_matrix[[i, j]] = best_score;
+        }
+    }
+
+    // find max element for traceback start position
+    let mut highest_value: f64 = 0.0;
+    let mut highest_pos = (0, 0);
+    for i in 0..h_matrix.shape()[0] {
+        for j in 0..h_matrix.shape()[1] {
+            if h_matrix[[i, j]] >= highest_value {
+                highest_value = h_matrix[[i, j]];
+                highest_pos = (i, j);
+            }
+        }
+    }
+
+    println!("h_matrix: {:#?}", h_matrix);
+    // println!("dir_matrix: {:#?}", dir_matrix);
+    println!("Highest value: {}", highest_value);
+    println!("Highest pos: {:#?}", highest_pos);
+
+    let start_node = dir_nodes.get(&highest_pos).unwrap();
+    let path = algo::astar(
+        &dir_graph,
+        *start_node,
+        |finish| {
+            let index = dir_graph.node_weight(finish).unwrap();
+            let score = h_matrix[*index];
+
+            score.abs() < 1e-6
+        },
+        |edge| match *edge.weight() {
+            DIAG => 0,
+            UP => 1,
+            LEFT => 1,
+            _ => 2,
+        },
+        |_| 0,
+    )
+    .unwrap();
+
+    println!("path: {:#?}", path);
+
+    let mut matches = Vec::<(usize, usize)>::new();
+    let mut prev_node = path.1[0];
+    println!("prev_node: {:#?}", prev_node);
+    for node in path.1.iter().skip(1) {
+        let prev_index = dir_graph.node_weight(prev_node).unwrap();
+        let curr_index = dir_graph.node_weight(*node).unwrap();
+        if prev_index.0 - curr_index.0 == 1 && prev_index.1 - curr_index.1 == 1 {
+            println!("Found a match! {}, {}", curr_index.0, curr_index.1);
+            matches.push((prev_index.0 - 1, prev_index.1 - 1));
+        }
+        prev_node = *node;
+    }
+
+    matches
+}
+
 fn score_passing(
     ground_truth_labels: &[log_labels::PassingLabel],
     predicted_labels: &[log_labels::PassingLabel],
 ) -> f64 {
+    let label_matches = match_passing(ground_truth_labels, predicted_labels);
+    println!("Matches: {:#?}", label_matches);
+
     let mut score: f64 = 0.0;
-    for (ground_truth_label, predicted_label) in
-        ground_truth_labels.iter().zip(predicted_labels.iter())
-    {
-        let ground_truth_span = (
-            ground_truth_label.get_start_frame(),
-            ground_truth_label.get_end_frame(),
-        );
-        let predicted_span = (
-            predicted_label.get_start_frame(),
-            predicted_label.get_end_frame(),
-        );
+    for (pred_index, gt_index) in label_matches {
+        let pred_label = &predicted_labels[pred_index];
+        let gt_label = &ground_truth_labels[gt_index];
+
+        let ground_truth_span = (gt_label.get_start_frame(), gt_label.get_end_frame());
+        let predicted_span = (pred_label.get_start_frame(), pred_label.get_end_frame());
         score += calc_iou(ground_truth_span, predicted_span);
 
-        if ground_truth_label.get_successful() == predicted_label.get_successful() {
+        if gt_label.get_successful() == pred_label.get_successful() {
             score += 0.5;
         }
 
-        if ground_truth_label.get_passer_id() == predicted_label.get_passer_id() {
+        if gt_label.get_passer_id() == pred_label.get_passer_id() {
             score += 0.5;
         }
 
-        if ground_truth_label.get_passer_team() == predicted_label.get_passer_team() {
+        if gt_label.get_passer_team() == pred_label.get_passer_team() {
             score += 0.5;
         }
 
-        if ground_truth_label.get_receiver_id() == predicted_label.get_receiver_id() {
+        if gt_label.get_receiver_id() == pred_label.get_receiver_id() {
             score += 0.5;
         }
     }

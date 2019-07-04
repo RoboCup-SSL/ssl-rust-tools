@@ -16,8 +16,10 @@ crossbeam = "0.7"
 failure = { version = "0.1" }
 indicatif = "0.11"
 lazy_static = "1.2"
+ndarray = { version = "0.12.1"}
 socket2 = { version = "0.3", features = ["reuseport"] }
 protobuf = { version = "2.3" }
+petgraph = { version="0.4.13" }
 
 # gui deps
 gfx = { version = "0.17", optional = true }
