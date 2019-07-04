@@ -139,13 +139,19 @@ fn calc_iou(span_a: (u64, u64), span_b: (u64, u64)) -> f64 {
     intersect / union
 }
 
-// TODO: output pairs for scoring
-fn match_passing(
-    ground_truth_labels: &[log_labels::PassingLabel],
-    predicted_labels: &[log_labels::PassingLabel],
-) -> Vec<(usize, usize)> {
-    let mut h_matrix: Array2<f64> =
-        Array::zeros((predicted_labels.len() + 1, ground_truth_labels.len() + 1));
+/// Uses Smith–Waterman alignment algorithm to match duration event labels
+///
+/// See https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm#Algorithm
+///     https://www.ks.uiuc.edu/Training/SumSchool/materials/sources/tutorials/07-bioinformatics/seqlab-html/node6.html#table:dynMat2
+///
+/// Currently the penalty for a misalignment is 0. So this should find
+/// the best matching assignment regardless of necessary shift
+/// distance.
+///
+/// Once matches are found IOU and label matching proceeds as normal
+/// between the matched labels.
+fn match_labels(gt_spans: &[(u64, u64)], pred_spans: &[(u64, u64)]) -> Vec<(usize, usize)> {
+    let mut h_matrix: Array2<f64> = Array::zeros((pred_spans.len() + 1, gt_spans.len() + 1));
     let mut dir_graph = Graph::<(usize, usize), u8>::new();
     let mut dir_nodes: HashMap<(usize, usize), NodeIndex> = HashMap::new();
     for i in 0..h_matrix.shape()[0] {
@@ -159,10 +165,8 @@ fn match_passing(
 
     for i in 1..h_matrix.shape()[0] {
         for j in 1..h_matrix.shape()[1] {
-            let gt_label = &ground_truth_labels[j - 1];
-            let pred_label = &predicted_labels[i - 1];
-            let gt_span = (gt_label.get_start_frame(), gt_label.get_end_frame());
-            let pred_span = (pred_label.get_start_frame(), pred_label.get_end_frame());
+            let gt_span = (gt_spans[j - 1].0 as u64, gt_spans[j - 1].1 as u64);
+            let pred_span = (pred_spans[i - 1].0 as u64, pred_spans[i - 1].1 as u64);
             let iou = calc_iou(gt_span, pred_span);
 
             let diag_score = h_matrix[[i - 1, j - 1]] + iou;
@@ -201,10 +205,10 @@ fn match_passing(
         }
     }
 
-    println!("h_matrix: {:#?}", h_matrix);
-    // println!("dir_matrix: {:#?}", dir_matrix);
-    println!("Highest value: {}", highest_value);
-    println!("Highest pos: {:#?}", highest_pos);
+    // println!("h_matrix: {:#?}", h_matrix);
+    // // println!("dir_matrix: {:#?}", dir_matrix);
+    // println!("Highest value: {}", highest_value);
+    // println!("Highest pos: {:#?}", highest_pos);
 
     let start_node = dir_nodes.get(&highest_pos).unwrap();
     let path = algo::astar(
@@ -226,17 +230,13 @@ fn match_passing(
     )
     .unwrap();
 
-    println!("path: {:#?}", path);
-
     let mut matches = Vec::<(usize, usize)>::new();
     let mut prev_node = path.1[0];
-    println!("prev_node: {:#?}", prev_node);
     for node in path.1.iter().skip(1) {
         let prev_index = dir_graph.node_weight(prev_node).unwrap();
         let curr_index = dir_graph.node_weight(*node).unwrap();
         if prev_index.0 - curr_index.0 == 1 && prev_index.1 - curr_index.1 == 1 {
-            println!("Found a match! {}, {}", curr_index.0, curr_index.1);
-            matches.push((prev_index.0 - 1, prev_index.1 - 1));
+            matches.push((prev_index.1 - 1, prev_index.0 - 1));
         }
         prev_node = *node;
     }
@@ -248,17 +248,24 @@ fn score_passing(
     ground_truth_labels: &[log_labels::PassingLabel],
     predicted_labels: &[log_labels::PassingLabel],
 ) -> f64 {
-    let label_matches = match_passing(ground_truth_labels, predicted_labels);
-    println!("Matches: {:#?}", label_matches);
+    let mut gt_spans = Vec::<(u64, u64)>::new();
+    for gt_label in ground_truth_labels.iter() {
+        gt_spans.push((gt_label.get_start_frame(), gt_label.get_end_frame()));
+    }
+    let mut pred_spans = Vec::<(u64, u64)>::new();
+    for pred_label in predicted_labels.iter() {
+        pred_spans.push((pred_label.get_start_frame(), pred_label.get_end_frame()));
+    }
+    let label_matches = match_labels(&pred_spans, &gt_spans);
 
     let mut score: f64 = 0.0;
     for (pred_index, gt_index) in label_matches {
         let pred_label = &predicted_labels[pred_index];
         let gt_label = &ground_truth_labels[gt_index];
 
-        let ground_truth_span = (gt_label.get_start_frame(), gt_label.get_end_frame());
-        let predicted_span = (pred_label.get_start_frame(), pred_label.get_end_frame());
-        score += calc_iou(ground_truth_span, predicted_span);
+        let gt_span = gt_spans[gt_index];
+        let pred_span = pred_spans[pred_index];
+        score += calc_iou(gt_span, pred_span);
 
         if gt_label.get_successful() == pred_label.get_successful() {
             score += 0.5;
@@ -283,29 +290,34 @@ fn score_goal_shot(
     ground_truth_labels: &[log_labels::GoalShotLabel],
     predicted_labels: &[log_labels::GoalShotLabel],
 ) -> f64 {
+    let mut gt_spans = Vec::<(u64, u64)>::new();
+    for gt_label in ground_truth_labels.iter() {
+        gt_spans.push((gt_label.get_start_frame(), gt_label.get_end_frame()));
+    }
+    let mut pred_spans = Vec::<(u64, u64)>::new();
+    for pred_label in predicted_labels.iter() {
+        pred_spans.push((pred_label.get_start_frame(), pred_label.get_end_frame()));
+    }
+    let label_matches = match_labels(&pred_spans, &gt_spans);
+
     let mut score: f64 = 0.0;
-    for (ground_truth_label, predicted_label) in
-        ground_truth_labels.iter().zip(predicted_labels.iter())
-    {
-        let ground_truth_span = (
-            ground_truth_label.get_start_frame(),
-            ground_truth_label.get_end_frame(),
-        );
-        let predicted_span = (
-            predicted_label.get_start_frame(),
-            predicted_label.get_end_frame(),
-        );
-        score += calc_iou(ground_truth_span, predicted_span);
+    for (pred_index, gt_index) in label_matches {
+        let pred_label = &predicted_labels[pred_index];
+        let gt_label = &ground_truth_labels[gt_index];
 
-        if ground_truth_label.get_successful() == predicted_label.get_successful() {
+        let gt_span = gt_spans[gt_index];
+        let pred_span = pred_spans[pred_index];
+        score += calc_iou(gt_span, pred_span);
+
+        if gt_label.get_successful() == pred_label.get_successful() {
             score += 0.5;
         }
 
-        if ground_truth_label.get_shooter_id() == predicted_label.get_shooter_id() {
+        if gt_label.get_shooter_id() == pred_label.get_shooter_id() {
             score += 0.5;
         }
 
-        if ground_truth_label.get_shooter_team() == predicted_label.get_shooter_team() {
+        if gt_label.get_shooter_team() == pred_label.get_shooter_team() {
             score += 0.5;
         }
     }
