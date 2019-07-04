@@ -248,6 +248,9 @@ fn score_passing(
     ground_truth_labels: &[log_labels::PassingLabel],
     predicted_labels: &[log_labels::PassingLabel],
 ) -> f64 {
+    println!("Num gt passing labels: {}", ground_truth_labels.len());
+    println!("Num pred passing labels: {}", predicted_labels.len());
+    
     let mut gt_spans = Vec::<(u64, u64)>::new();
     for gt_label in ground_truth_labels.iter() {
         gt_spans.push((gt_label.get_start_frame(), gt_label.get_end_frame()));
@@ -290,6 +293,9 @@ fn score_goal_shot(
     ground_truth_labels: &[log_labels::GoalShotLabel],
     predicted_labels: &[log_labels::GoalShotLabel],
 ) -> f64 {
+    println!("Num gt goal shots labels: {}", ground_truth_labels.len());
+    println!("Num pred goal shots labels: {}", predicted_labels.len());
+    
     let mut gt_spans = Vec::<(u64, u64)>::new();
     for gt_label in ground_truth_labels.iter() {
         gt_spans.push((gt_label.get_start_frame(), gt_label.get_end_frame()));
